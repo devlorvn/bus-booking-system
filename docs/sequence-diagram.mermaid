@@ -1,0 +1,92 @@
+sequenceDiagram
+    actor UserA as User A
+    actor UserB as User B
+
+    participant FE as Frontend
+    participant API as API Server
+    participant PG as PostgreSQL
+    participant Redis as Redis
+    participant WS as WebSocket Hub
+
+    %% =========================
+    %% INITIAL LOAD
+    %% =========================
+
+    UserA->>FE: Open bus page
+
+    FE->>API: GET /buses/1/seats
+
+    API->>PG: Query all seats
+    PG-->>API: Seat list
+
+    API-->>FE: Return seats
+    FE-->>UserA: Render seat map
+
+    %% =========================
+    %% WEBSOCKET CONNECTION
+    %% =========================
+
+    UserA->>FE: Connect WebSocket
+
+    FE->>WS: Join room bus:1
+    WS-->>FE: Connected
+
+    %% =========================
+    %% USER LOCKS SEAT
+    %% =========================
+
+    UserA->>FE: Click seat A1
+
+    FE->>API: POST /bookings/lock
+
+    %% Validate seat in DB first
+    API->>PG: Check seat exists
+    PG-->>API: Seat exists
+
+    API->>PG: Check seat status
+    PG-->>API: AVAILABLE
+
+    %% Redis distributed lock
+    API->>Redis: SETNX seat_lock:bus_1:A1
+    Redis-->>API: SUCCESS + TTL(5m)
+
+    %% Broadcast realtime
+    API->>WS: Broadcast seat_locked(A1)
+
+    WS-->>FE: seat_locked(A1)
+    FE-->>UserA: Update seat UI
+
+    %% =========================
+    %% USER B ENTERS
+    %% =========================
+
+    UserB->>FE: Open bus page
+
+    FE->>API: GET /buses/1/seats
+
+    API->>PG: Query seats
+    PG-->>API: Seat list
+
+    API-->>FE: Return seats
+    FE-->>UserB: Render seat map
+
+    UserB->>FE: Connect WebSocket
+    FE->>WS: Join room bus:1
+
+    WS-->>FE: seat_locked(A1)
+    FE-->>UserB: Show A1 locked
+
+    %% =========================
+    %% USER B TRIES SAME SEAT
+    %% =========================
+
+    UserB->>FE: Click A1
+
+    FE->>API: POST /bookings/lock
+
+    API->>Redis: SETNX seat_lock:bus_1:A1
+    Redis-->>API: FAILED
+
+    API-->>FE: Seat already locked
+
+    FE-->>UserB: Show lock failed

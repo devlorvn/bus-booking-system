@@ -1,0 +1,89 @@
+sequenceDiagram
+    actor UserA as User A
+
+    participant FE as Frontend
+    participant API as API Server
+    participant Redis as Redis
+    participant PG as PostgreSQL
+    participant WS as WebSocket Hub
+    participant Kafka as Kafka
+
+    %% =========================
+    %% USER CONFIRM BOOKING
+    %% =========================
+
+    UserA->>FE: Confirm booking
+
+    FE->>API: POST /bookings/confirm
+
+    %% =========================
+    %% VALIDATE REDIS LOCK
+    %% =========================
+
+    API->>Redis: Get seat lock owner
+    Redis-->>API: temp_user_123
+
+    API->>Redis: Validate TTL active
+    Redis-->>API: VALID
+
+    %% =========================
+    %% START DB TRANSACTION
+    %% =========================
+
+    API->>PG: BEGIN TRANSACTION
+
+    %% Lock rows
+    API->>PG: SELECT seats FOR UPDATE
+
+    PG-->>API: Seat rows locked
+
+    %% Validate again inside transaction
+    API->>PG: Check seat status
+    PG-->>API: NOT BOOKED
+
+    %% Create booking
+    API->>PG: INSERT bookings
+
+    %% Insert booking seats
+    API->>PG: INSERT booking_seats
+
+    %% Update seat status
+    API->>PG: UPDATE seats SET status='BOOKED'
+
+    %% Commit transaction
+    API->>PG: COMMIT
+
+    PG-->>API: Transaction success
+
+    %% =========================
+    %% CLEANUP REDIS LOCKS
+    %% =========================
+
+    API->>Redis: DELETE seat locks
+
+    Redis-->>API: Locks removed
+
+    %% =========================
+    %% REALTIME BROADCAST
+    %% =========================
+
+    API->>WS: Broadcast booking_confirmed
+
+    WS-->>FE: booking_confirmed
+    FE-->>UserA: Update UI success
+
+    %% =========================
+    %% ASYNC EVENT
+    %% =========================
+
+    API->>Kafka: Publish booking.confirmed
+
+    Kafka-->>API: Event accepted
+
+    %% =========================
+    %% FINAL RESPONSE
+    %% =========================
+
+    API-->>FE: Booking success
+
+    FE-->>UserA: Show payment success
