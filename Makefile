@@ -16,3 +16,6 @@ dev:
 
 build:
 	go build -o bin/api cmd/api/main.go
+
+seed:
+	go run cmd/seed/main.go
