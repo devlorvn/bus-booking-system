@@ -12,5 +12,5 @@ type SeatRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Seat, error)
 	Update(ctx context.Context, seat *domain.Seat) (*domain.Seat, error)
 	Delete(ctx context.Context, id uuid.UUID) error
-	List(ctx context.Context) ([]*domain.Seat, error)
+	ListByBusID(ctx context.Context, busID uuid.UUID) ([]*domain.Seat, error)
 }

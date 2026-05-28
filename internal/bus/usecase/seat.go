@@ -47,6 +47,6 @@ func (u *SeatUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 	return u.repo.Delete(ctx, id)
 }
 
-func (u *SeatUsecase) List(ctx context.Context) ([]*domain.Seat, error) {
-	return u.repo.List(ctx)
+func (u *SeatUsecase) ListByBusID(ctx context.Context, busID uuid.UUID) ([]*domain.Seat, error) {
+	return u.repo.ListByBusID(ctx, busID)
 }

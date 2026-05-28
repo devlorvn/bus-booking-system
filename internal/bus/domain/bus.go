@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -9,14 +11,14 @@ type Bus struct {
 	LicensePlate   string    `json:"license_plate"`
 	FromLocation   string    `json:"from_location"`
 	ToLocation     string    `json:"to_location"`
-	DepartureTime  string    `json:"departure_time"`
+	DepartureTime  time.Time `json:"departure_time"`
 	TotalSeats     int       `json:"total_seats"`
 	AvailableSeats int       `json:"available_seats"`
-	Price          int       `json:"price"`
+	Price          float64   `json:"price"`
 	Status         string    `json:"status"`
 
-	Seats []Seat
+	Seats []Seat `json:"seats"`
 
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
