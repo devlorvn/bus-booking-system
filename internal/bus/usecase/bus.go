@@ -6,6 +6,7 @@ import (
 	"booking-system/internal/bus/repository"
 	"booking-system/pkg/shared"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -34,8 +35,11 @@ func (u *BusUsecase) Create(ctx context.Context, req dto.CreateBusRequest) (*dom
 		Status:         "OPEN",
 	}
 
-	u.tx.Execute(ctx, func(txCtx context.Context) error {
-		u.repo.Create(txCtx, bus)
+	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+		_, err := u.repo.Create(txCtx, bus)
+		if err != nil {
+			return err
+		}
 
 		for row := range req.RowName {
 			for i := 1; i <= req.SeatsPerRow; i++ {
@@ -45,12 +49,18 @@ func (u *BusUsecase) Create(ctx context.Context, req dto.CreateBusRequest) (*dom
 					SeatCode: fmt.Sprintf("%s%d", req.RowName[row], i),
 					Status:   "AVAILABLE",
 				}
-				u.seatUsecase.Create(txCtx, seat)
+				_, err := u.seatUsecase.Create(txCtx, seat)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	return bus, nil
 }
 
@@ -58,6 +68,9 @@ func (u *BusUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.Bus, er
 	bus, err := u.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if bus == nil {
+		return nil, errors.New("Bus not found")
 	}
 	seats, err := u.seatUsecase.ListByBusID(ctx, bus.ID)
 	if err != nil {

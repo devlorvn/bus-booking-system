@@ -2,6 +2,7 @@ package http
 
 import (
 	"booking-system/internal/delivery/http/handler"
+	"booking-system/internal/delivery/http/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,6 +13,7 @@ type HandlerHttpGroup struct {
 
 func NewRouter(h *HandlerHttpGroup) *gin.Engine {
 	r := gin.Default()
+	r.Use(middleware.ErrorHandler())
 
 	bus := r.Group("/buses")
 	{
