@@ -2,9 +2,11 @@ package main
 
 import (
 	"booking-system/configs"
+	lockseat "booking-system/internal/booking/usecase/lock_seat"
+	httpBusDelivery "booking-system/internal/bus/delivery/http"
+	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
 	"booking-system/internal/bus/usecase"
-	httpDelivery "booking-system/internal/delivery/http"
-	httpHandler "booking-system/internal/delivery/http/handler"
+	"booking-system/internal/provider"
 	"booking-system/pkg/database"
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
@@ -24,13 +26,22 @@ func main() {
 	seatRepo := postgresRepository.NewSeatRepository(db)
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
 	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, txManager)
-	busHandler := httpHandler.NewBusHandler(busUsecase)
+	busHandler := httpBusHandler.NewBusHandler(busUsecase)
 
-	handleGroup := &httpDelivery.HandlerHttpGroup{
+	busProvider := provider.NewBusProvider(busRepo, seatRepo)
+	seatLockRepo := redis.NewLockSeatRepository(redis.NewClient(&cfg.Redis))
+	// publisher := ws.NewNoopPublisher()
+	_ = lockseat.NewLockSeatUsecase(
+		busProvider,
+		seatLockRepo,
+		// publisher,
+	)
+
+	handleGroup := &httpBusDelivery.HandlerHttpGroup{
 		BusHandler: busHandler,
 	}
 
-	r := httpDelivery.NewRouter(handleGroup)
+	r := httpBusDelivery.NewRouter(handleGroup)
 
 	r.Run(":" + cfg.Port)
 }

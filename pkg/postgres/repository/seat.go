@@ -4,6 +4,7 @@ import (
 	"booking-system/internal/bus/domain"
 	"booking-system/pkg/database"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -58,6 +59,21 @@ func (r *SeatRepository) ListByBusID(ctx context.Context, busID uuid.UUID) ([]*d
 	var seats []*domain.Seat
 	if err := r.dbFromContext(ctx).Where("bus_id = ?", busID).Find(&seats).Error; err != nil {
 		return nil, err
+	}
+	return seats, nil
+}
+
+func (r *SeatRepository) GetByBusAndCodes(
+	ctx context.Context,
+	busID uuid.UUID,
+	codes []string,
+) ([]*domain.Seat, error) {
+	var seats []*domain.Seat
+	if err := r.dbFromContext(ctx).Where("bus_id = ? AND seat_code IN ?", busID, codes).Find(&seats).Error; err != nil {
+		return nil, err
+	}
+	if len(seats) != len(codes) {
+		return nil, errors.New("SOME_SEATS_NOT_FOUND")
 	}
 	return seats, nil
 }

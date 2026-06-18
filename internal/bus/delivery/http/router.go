@@ -1,8 +1,8 @@
 package http
 
 import (
-	"booking-system/internal/delivery/http/handler"
-	"booking-system/internal/delivery/http/middleware"
+	"booking-system/internal/bus/delivery/http/handler"
+	"booking-system/internal/bus/delivery/http/middleware"
 
 	"github.com/gin-gonic/gin"
 )

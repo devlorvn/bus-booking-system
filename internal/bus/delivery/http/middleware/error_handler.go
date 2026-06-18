@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	httpErrors "booking-system/internal/delivery/http/errors"
-	"booking-system/internal/delivery/http/response"
+	httpErrors "booking-system/internal/bus/delivery/http/errors"
+	"booking-system/internal/bus/delivery/http/response"
 	"errors"
 	"net/http"
 

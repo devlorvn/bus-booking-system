@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"booking-system/internal/bus/delivery/http/errors"
+	"booking-system/internal/bus/delivery/http/response"
 	"booking-system/internal/bus/dto"
 	"booking-system/internal/bus/usecase"
-	"booking-system/internal/delivery/http/errors"
-	"booking-system/internal/delivery/http/response"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
