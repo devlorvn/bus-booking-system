@@ -2,6 +2,7 @@ package main
 
 import (
 	"booking-system/configs"
+	httpBooking "booking-system/internal/booking/delivery/http"
 	lockseat "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
@@ -11,6 +12,9 @@ import (
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
+	"booking-system/pkg/shared/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -21,7 +25,7 @@ func main() {
 	}
 	txManager := database.NewTransaction(db)
 
-	_ = redis.NewClient(&cfg.Redis)
+	redisClient := redis.NewClient(&cfg.Redis)
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
@@ -29,19 +33,22 @@ func main() {
 	busHandler := httpBusHandler.NewBusHandler(busUsecase)
 
 	busProvider := provider.NewBusProvider(busRepo, seatRepo)
-	seatLockRepo := redis.NewLockSeatRepository(redis.NewClient(&cfg.Redis))
+	seatLockRepo := redis.NewLockSeatRepository(redisClient)
 	// publisher := ws.NewNoopPublisher()
-	_ = lockseat.NewLockSeatUsecase(
+	lockSeatUsecase := lockseat.NewLockSeatUsecase(
 		busProvider,
 		seatLockRepo,
 		// publisher,
 	)
 
-	handleGroup := &httpBusDelivery.HandlerHttpGroup{
-		BusHandler: busHandler,
-	}
+	r := gin.Default()
 
-	r := httpBusDelivery.NewRouter(handleGroup)
+	api := r.Group("/api")
+
+	api.Use(middleware.ErrorHandler())
+
+	httpBusDelivery.RegiserBusRouter(api, busHandler)
+	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase))
 
 	r.Run(":" + cfg.Port)
 }

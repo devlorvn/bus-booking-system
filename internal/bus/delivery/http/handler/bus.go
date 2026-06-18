@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"booking-system/internal/bus/delivery/http/errors"
 	"booking-system/internal/bus/delivery/http/response"
 	"booking-system/internal/bus/dto"
 	"booking-system/internal/bus/usecase"
+	"booking-system/pkg/shared/errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -56,6 +56,11 @@ func (h *BusHandler) GetByID(c *gin.Context) {
 	bus, err := h.uc.GetByID(c.Request.Context(), busID)
 	if err != nil {
 		c.Error(err)
+		return
+	}
+
+	if bus == nil {
+		c.Error(errors.NotFound("bus not found"))
 		return
 	}
 

@@ -3,6 +3,7 @@ package redis
 import (
 	"booking-system/configs"
 	"context"
+	"fmt"
 
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -17,5 +18,6 @@ func NewClient(cfg *configs.Redis) *goredis.Client {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Connected to Redis at %s\n", addr)
 	return client
 }

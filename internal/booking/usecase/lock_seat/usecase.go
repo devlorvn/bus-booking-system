@@ -3,7 +3,6 @@ package lockseat
 import (
 	"booking-system/internal/booking/dto"
 	"context"
-	"errors"
 )
 
 type LockSeatUsecase struct {
@@ -29,11 +28,11 @@ func (u *LockSeatUsecase) Execute(
 	input dto.LockSeatRequest,
 ) (*dto.LockSeatResponse, error) {
 	if len(input.TempUserID) == 0 {
-		return nil, errors.New("TEMP_USER_ID_REQUIRED")
+		return nil, ErrTempUserIDRequired
 	}
 
 	if len(input.SeatCodes) == 0 {
-		return nil, errors.New("NO_SEAT_SELECTED")
+		return nil, ErrNoSeatSelected
 	}
 
 	bus, err := u.busPort.GetBus(ctx, input.BusID)
@@ -41,7 +40,7 @@ func (u *LockSeatUsecase) Execute(
 		return nil, err
 	}
 	if bus == nil {
-		return nil, errors.New("BUS_NOT_FOUND")
+		return nil, ErrBusNotFound
 	}
 
 	seats, err := u.busPort.GetSeatsByCodes(
@@ -54,12 +53,12 @@ func (u *LockSeatUsecase) Execute(
 	}
 
 	if len(seats) != len(input.SeatCodes) {
-		return nil, errors.New("SOME_SEATS_NOT_FOUND")
+		return nil, ErrSomeSeatsNotFound
 	}
 
 	for _, seat := range seats {
 		if seat.Status == "BOOKED" {
-			return nil, errors.New("SEAT_ALREADY_BOOKED")
+			return nil, ErrSeatAlreadyBooked
 		}
 	}
 
