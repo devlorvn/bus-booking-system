@@ -8,7 +8,7 @@ import (
 
 	"booking-system/internal/booking/dto"
 	lockseat "booking-system/internal/booking/usecase/lock_seat"
-	"booking-system/internal/bus/delivery/http/response"
+	"booking-system/pkg/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,6 +40,10 @@ func (h *BookingHandler) LockSeat(c *gin.Context) {
 			appError = httpErrors.BadRequest(err.Error())
 		case errors.Is(err, lockseat.ErrSomeSeatsNotFound):
 			appError = httpErrors.NotFound(err.Error())
+		case errors.Is(err, lockseat.ErrSeatAlreadyLocked):
+			appError = httpErrors.Conflict(err.Error())
+		case errors.Is(err, lockseat.ErrSeatAlreadyBooked):
+			appError = httpErrors.Conflict(err.Error())
 		default:
 			appError = httpErrors.InternalServerError(err.Error())
 		}
@@ -47,5 +51,5 @@ func (h *BookingHandler) LockSeat(c *gin.Context) {
 		return
 	}
 
-	response.Error(c, http.StatusOK, "lock seat sucessfully", resp)
+	response.Success(c, http.StatusOK, "lock seat sucessfully", resp)
 }
