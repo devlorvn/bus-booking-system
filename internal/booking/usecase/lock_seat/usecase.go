@@ -2,17 +2,18 @@ package lockseat
 
 import (
 	"booking-system/internal/booking/dto"
+	"booking-system/internal/booking/ports"
 	"context"
 )
 
 type LockSeatUsecase struct {
-	busPort      BusProvider
+	busPort      ports.BusProvider
 	seatLockPort SeatLockPort
 	// eventPublisher EventPublisher
 }
 
-func NewLockSeatUsecase(
-	busPort BusProvider,
+func New(
+	busPort ports.BusProvider,
 	seatLockPort SeatLockPort,
 	// eventPublisher EventPublisher,
 ) *LockSeatUsecase {

@@ -3,7 +3,7 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
-	lockseat "booking-system/internal/booking/usecase/lock_seat"
+	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
 	"booking-system/internal/bus/usecase"
@@ -35,7 +35,7 @@ func main() {
 	busProvider := provider.NewBusProvider(busRepo, seatRepo)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
 	// publisher := ws.NewNoopPublisher()
-	lockSeatUsecase := lockseat.NewLockSeatUsecase(
+	lockSeatUsecase := lockseatUC.New(
 		busProvider,
 		seatLockRepo,
 		// publisher,
