@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bus Booking System</title>
+
+    <link rel="stylesheet" href="./styles/main.css" />
+
+    <script defer src="./js/stores/bus.js"></script>
+    <script defer src="./js/stores/booking.js"></script>
+
+    <script defer src="./js/api/bus.js"></script>
+    <script defer src="./js/api/booking.js"></script>
+
+    <script defer src="./js/components/bus-management.js"></script>
+    <script defer src="./js/components/booking-flow.js"></script>
+
+    <script defer src="./js/app.js"></script>
+
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+  </head>
+
+  <body x-data="app">
+    <header class="topbar">
+      <h1>🚌 Bus Booking System</h1>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <h2>Debug Panel</h2>
+
+        <div class="card">
+          <p>
+            Selected Bus:
+            <span x-text="$store.bus.selectedBus?.route || 'None'"></span>
+          </p>
+
+          <p>
+            Booking Step:
+            <span x-text="$store.booking.step"></span>
+          </p>
+
+          <p>
+            Selected Seats:
+            <span
+              x-text="$store.booking.selectedSeats.join(', ') || '-'"
+            ></span>
+          </p>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main">
+        <div class="nav-tabs">
+          <button
+            :class="{ active: currentPage==='bus-management' }"
+            @click="changePage('bus-management')"
+          >
+            Bus Management
+          </button>
+
+          <button
+            :class="{ active: currentPage==='booking' }"
+            @click="changePage('booking')"
+          >
+            Booking Flow
+          </button>
+        </div>
+
+        <template x-if="currentPage === 'bus-management'">
+          <section x-data="busManagement" x-init="init()">
+            <div class="bus-header">
+              <h2>Bus Management</h2>
+              <button @click="showCreateBusModal = true">+ Create Bus</button>
+            </div>
+
+            <template x-if="loading">
+              <p>Loading buses...</p>
+            </template>
+
+            <template x-if="!loading">
+              <div>
+                <table class="bus-table">
+                  <thead>
+                    <tr>
+                      <th>Plate</th>
+                      <th>Route</th>
+                      <th>Departure</th>
+                      <th>Price</th>
+                      <th>Seats</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <template x-for="bus in buses" :key="bus.id">
+                      <tr>
+                        <td x-text="bus.licensePlate"></td>
+                        <td x-text="bus.route"></td>
+                        <td x-text="bus.departureTime"></td>
+                        <td x-text="formatMoney(bus.price)"></td>
+                        <td>
+                          <span x-text="bus.availableSeats"></span> /
+                          <span x-text="bus.totalSeats"></span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+
+                <template x-if="buses.length === 0">
+                  <p>No buses found</p>
+                </template>
+              </div>
+            </template>
+
+            <!-- MODAL -->
+            <template x-if="showCreateBusModal">
+              <div class="modal-backdrop">
+                <div class="modal">
+                  <h3>Create Bus</h3>
+
+                  <input
+                    x-model="newBus.licensePlate"
+                    placeholder="License Plate"
+                  />
+                  <input x-model="newBus.from" placeholder="From" />
+                  <input x-model="newBus.to" placeholder="To" />
+
+                  <input x-model="newBus.departureTime" type="datetime-local" />
+
+                  <input
+                    x-model.number="newBus.price"
+                    type="number"
+                    placeholder="Price"
+                  />
+
+                  <input
+                    x-model.number="newBus.totalSeats"
+                    type="number"
+                    placeholder="Total Seats"
+                  />
+
+                  <input x-model="newBus.rowNames" placeholder="A,B,C,D" />
+
+                  <input
+                    x-model.number="newBus.seatsPerRow"
+                    type="number"
+                    placeholder="Seats Per Row"
+                  />
+
+                  <div class="modal-actions">
+                    <button @click="showCreateBusModal = false">Cancel</button>
+
+                    <button @click="createBus()">Create</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </section>
+        </template>
+
+        <template x-if="currentPage === 'booking'">
+          <section x-data="bookingFlow">
+            <template x-if="step===1">
+              <div>
+                <h2>Select Bus</h2>
+
+                <template x-for="bus in buses" :key="bus.id">
+                  <div class="bus-card">
+                    <h3 x-text="bus.route"></h3>
+                    <p x-text="formatMoney(bus.price)"></p>
+
+                    <button @click="selectBus(bus)">Select</button>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template x-if="step===2">
+              <div>
+                <h2>
+                  Seats for:
+                  <span x-text="selectedBus.route"></span>
+                </h2>
+
+                <div class="seat-grid">
+                  <template x-for="seat in seats" :key="seat.id">
+                    <div
+                      class="seat"
+                      :class="{
+                        selected: isSelected(seat.code),
+                        booked: seat.status === 'BOOKED'
+                      }"
+                      @click="toggleSeat(seat)"
+                      x-text="seat.code"
+                    ></div>
+                  </template>
+                </div>
+
+                <div class="card">
+                  <p>
+                    Selected:
+                    <span x-text="selectedSeats.join(', ') || '-'"></span>
+                  </p>
+
+                  <p>
+                    Total:
+                    <span x-text="formatMoney(totalAmount())"></span>
+                  </p>
+                </div>
+              </div>
+            </template>
+          </section>
+        </template>
+      </main>
+    </div>
+  </body>
+</html>

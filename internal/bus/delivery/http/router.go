@@ -16,6 +16,7 @@ func RegiserBusRouter(
 		bus.GET("/", handler.List)
 		bus.POST("/", handler.Create)
 		bus.GET("/:id", handler.GetByID)
+		bus.GET("/:id/seats", handler.GetSeats)
 		bus.PUT("/:id", handler.Update)
 		bus.DELETE("/:id", handler.Delete)
 	}

@@ -1,0 +1,232 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #f3f4f6;
+}
+
+.topbar {
+  height: 70px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+}
+
+.status-group {
+  display: flex;
+  gap: 12px;
+}
+
+.status {
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.green {
+  background: #d1fae5;
+  color: green;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: calc(100vh - 70px);
+}
+
+.sidebar {
+  background: white;
+  padding: 20px;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+.main {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.card {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.stepper {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.step {
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  transition: all .3s;
+}
+
+.step.active {
+  background: #2563eb;
+  color: white;
+}
+
+.step.completed {
+  background: #16a34a;
+  color: white;
+}
+
+.bus-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.seat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 70px);
+  gap: 12px;
+}
+
+.seat {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  background: #4ade80;
+  transition: .2s;
+}
+
+.seat:hover {
+  transform: scale(1.08);
+}
+
+.seat.selected {
+  background: #facc15;
+}
+
+.seat.booked {
+  background: #ef4444;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.spinner {
+  width: 80px;
+  height: 80px;
+  border: 8px solid #ddd;
+  border-top: 8px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 30px auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fade {
+  animation: fade .25s ease;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.bus-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.bus-table th,
+.bus-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.primary-btn {
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal {
+  width: 520px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-body input {
+  padding: 12px;
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

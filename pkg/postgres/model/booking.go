@@ -18,3 +18,8 @@ type Booking struct {
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+
+type BookingSeat struct {
+	BookingID uuid.UUID `gorm:"type:uuid;primaryKey"`
+	SeatID    uuid.UUID `gorm:"type:uuid;primaryKey"`
+}

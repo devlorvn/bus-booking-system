@@ -23,6 +23,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	if cfg.Mode == "development" {
+		postgres.AutoMigrate(db)
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	txManager := database.NewTransaction(db)
 
 	redisClient := redis.NewClient(&cfg.Redis)
@@ -44,6 +51,8 @@ func main() {
 	r := gin.Default()
 
 	api := r.Group("/api")
+
+	r.Static("/ui", "./web")
 
 	api.Use(middleware.ErrorHandler())
 

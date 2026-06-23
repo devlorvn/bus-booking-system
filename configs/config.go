@@ -22,6 +22,7 @@ type Redis struct {
 
 type Config struct {
 	Port string
+	Mode string
 	Database
 	Redis
 	BookingLockTTL string
@@ -35,6 +36,7 @@ func LoadConfig() *Config {
 
 	return &Config{
 		Port: getEnv("APP_PORT"),
+		Mode: getEnv("APP_MODE"),
 		Database: Database{
 			Host:     getEnv("POSTGRES_HOST"),
 			Port:     getEnv("POSTGRES_PORT"),

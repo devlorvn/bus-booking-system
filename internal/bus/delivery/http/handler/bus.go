@@ -44,6 +44,23 @@ func (h *BusHandler) List(c *gin.Context) {
 	response.Success(c, http.StatusOK, "buses retrieved successfully", buses)
 }
 
+func (h *BusHandler) GetSeats(c *gin.Context) {
+	id := c.Param("id")
+	busID, err := uuid.Parse(id)
+	if err != nil {
+		c.Error(errors.BadRequest("invalid bus ID"))
+		return
+	}
+
+	seats, err := h.uc.GetSeats(c.Request.Context(), busID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "seats retrieved successfully", seats)
+}
+
 func (h *BusHandler) GetByID(c *gin.Context) {
 	// Implementation for getting a bus by ID
 	id := c.Param("id")

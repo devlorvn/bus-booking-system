@@ -23,6 +23,7 @@ func NewBusUsecase(repo repository.BusRepository, seatUsecase *SeatUsecase, tx s
 }
 
 func (u *BusUsecase) Create(ctx context.Context, req dto.CreateBusRequest) (*domain.Bus, error) {
+	totalSeats := len(req.RowName) * req.SeatsPerRow
 	bus := &domain.Bus{
 		ID:             uuid.New(),
 		LicensePlate:   req.LicensePlate,
@@ -30,8 +31,8 @@ func (u *BusUsecase) Create(ctx context.Context, req dto.CreateBusRequest) (*dom
 		ToLocation:     req.ToLocation,
 		DepartureTime:  req.DepartureTime,
 		Price:          req.Price,
-		TotalSeats:     req.TotalSeats,
-		AvailableSeats: req.TotalSeats,
+		TotalSeats:     totalSeats,
+		AvailableSeats: totalSeats,
 		Status:         "OPEN",
 	}
 
@@ -86,6 +87,21 @@ func (u *BusUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.Bus, er
 
 	bus.Seats = busSeats
 	return bus, nil
+}
+
+func (u *BusUsecase) GetSeats(ctx context.Context, busID uuid.UUID) ([]*domain.Seat, error) {
+	bus, err := u.repo.GetByID(ctx, busID)
+	if err != nil {
+		return nil, err
+	}
+	if bus == nil {
+		return nil, errors.New("Bus not found")
+	}
+	seats, err := u.seatUsecase.ListByBusID(ctx, busID)
+	if err != nil {
+		return nil, err
+	}
+	return seats, nil
 }
 
 func (u *BusUsecase) Update(ctx context.Context, bus *domain.Bus) (*domain.Bus, error) {

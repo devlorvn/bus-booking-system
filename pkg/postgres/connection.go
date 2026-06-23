@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"booking-system/configs"
+	"booking-system/pkg/postgres/model"
 	"fmt"
 
 	"gorm.io/driver/postgres"
@@ -17,4 +18,18 @@ func NewPostgres(cfg *configs.Database) (*gorm.DB, error) {
 	}
 	fmt.Println("Connected to Postgres successfully")
 	return db, nil
+}
+
+func AutoMigrate(db *gorm.DB) error {
+	err := db.AutoMigrate(
+		&model.Bus{},
+		&model.Seat{},
+		&model.Booking{},
+		&model.BookingSeat{},
+	)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Database migration completed successfully")
+	return nil
 }
