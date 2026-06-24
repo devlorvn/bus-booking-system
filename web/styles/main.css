@@ -678,6 +678,12 @@ button:hover {
   box-shadow: none;
 }
 
+.seat.locked {
+  background: orange;
+  color: white;
+  cursor: not-allowed;
+}
+
 /* Legend Styling */
 .seat-legend {
   display: flex;

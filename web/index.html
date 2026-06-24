@@ -14,6 +14,8 @@
   <script defer src="./js/api/bus.js"></script>
   <script defer src="./js/api/booking.js"></script>
 
+  <script defer src="./js/services/websocket.js"></script>
+
   <script defer src="./js/stores/bus.js"></script>
   <script defer src="./js/stores/booking.js"></script>
 
@@ -223,7 +225,8 @@
                               selected: isSelected(seat.code),
                               booked: seat.status === 'BOOKED',
                               'aisle-seat': index % 6 === 2,
-                              'last-in-row': index % 6 === 5
+                              'last-in-row': index % 6 === 5,
+                              locked: seat.locked,
                             }" @click="toggleSeat(seat)" x-text="seat.code"></div>
                       </template>
                     </div>

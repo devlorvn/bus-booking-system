@@ -1,7 +1,11 @@
 document.addEventListener("alpine:init", () => {
   Alpine.data("bookingFlow", () => ({
     booking: false,
+    ws: null,
 
+    init() {
+      this.ws = WebSocketService();
+    },
     get buses() {
       return Alpine.store("bus").buses;
     },
@@ -30,6 +34,8 @@ document.addEventListener("alpine:init", () => {
       Alpine.store("bus").selectBus(bus);
       Alpine.store("booking").loadingSeats = true;
 
+      this.connectBusRoom(bus.id)
+
       try {
         const seats = await BookingAPI.getSeats(bus.id);
 
@@ -50,7 +56,11 @@ document.addEventListener("alpine:init", () => {
     },
 
     toggleSeat(seat) {
-      if (seat.status === "BOOKED") return;
+      if (seat.booked || seat.locked) {
+        return;
+      }
+      const idx = this.selectedSeats.indexOf(seat.code);
+
       Alpine.store("booking").toggleSeat(seat.code);
     },
 
@@ -80,7 +90,7 @@ document.addEventListener("alpine:init", () => {
         );
 
         alert(`Đặt vé thành công cho các ghế: ${this.selectedSeats.join(', ')}`);
-        
+
         // Reset booking flow
         Alpine.store("booking").reset();
         Alpine.store("bus").clearSelectedBus();
@@ -89,6 +99,73 @@ document.addEventListener("alpine:init", () => {
         alert(`Đặt vé thất bại: ${err.message}`);
       } finally {
         this.booking = false;
+      }
+    },
+
+    connectBusRoom(busId) {
+      if (!this.ws) return;
+
+      this.ws.disconnect();
+
+      this.ws.connect(busId, {
+        onOpen: () => {
+          console.log("[BookingFlow] WS connected");
+        },
+
+        onMessage: (message) => {
+          this.handleSocketEvent(message);
+        },
+
+        onClose: () => {
+          console.log("[BookingFlow] WS closed");
+        },
+
+        onError: (err) => {
+          console.error("[BookingFlow] WS error", err);
+        },
+      });
+    },
+
+    handleSocketEvent(message) {
+      switch (message.event) {
+        case "seat_locked":
+          this.handleSeatLocked(message.data);
+          break;
+
+        case "seat_released":
+          this.handleSeatReleased(message.data);
+          break;
+
+        default:
+          console.warn("Unknown WS event:", message.event);
+      }
+    },
+    handleSeatLocked(data) {
+      const seat = this.seats.find(
+        (s) => s.code === data.seat_code
+      );
+
+      if (!seat) return;
+
+      seat.locked = true;
+
+      console.log("Seat locked:", seat.code);
+    },
+    handleSeatReleased(data) {
+      const seat = this.seats.find(
+        (s) => s.code === data.seat_code
+      );
+
+      if (!seat) return;
+
+      seat.locked = false;
+
+      console.log("Seat released:", seat.code);
+    },
+
+    disconnect() {
+      if (this.ws) {
+        this.ws.disconnect();
       }
     },
 
