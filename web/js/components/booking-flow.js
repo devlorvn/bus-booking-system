@@ -57,6 +57,11 @@ document.addEventListener("alpine:init", () => {
       return this.selectedSeats.length * this.selectedBus.price;
     },
 
+    goBack() {
+      Alpine.store("booking").reset();
+      Alpine.store("bus").clearSelectedBus();
+    },
+
     formatMoney(value) {
       return new Intl.NumberFormat("vi-VN").format(value) + " VND";
     },

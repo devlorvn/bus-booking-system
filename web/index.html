@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bus Booking System</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles/main.css" />
 
     <script defer src="./js/stores/bus.js"></script>
@@ -166,51 +172,149 @@
 
         <template x-if="currentPage === 'booking'">
           <section x-data="bookingFlow">
+            <!-- Booking Steps Indicator -->
+            <div class="booking-steps-indicator">
+              <div class="step-indicator-item" :class="{ active: step === 1, completed: step > 1 }">
+                <span class="step-num">1</span>
+                <span class="step-text">Chọn chuyến xe</span>
+              </div>
+              <div class="step-line"></div>
+              <div class="step-indicator-item" :class="{ active: step === 2, completed: step > 2 }">
+                <span class="step-num">2</span>
+                <span class="step-text">Chọn ghế ngồi</span>
+              </div>
+            </div>
+
             <template x-if="step===1">
               <div>
                 <h2>Select Bus</h2>
 
-                <template x-for="bus in buses" :key="bus.id">
-                  <div class="bus-card">
-                    <h3 x-text="bus.route"></h3>
-                    <p x-text="formatMoney(bus.price)"></p>
+                <div class="bus-grid">
+                  <template x-for="bus in buses" :key="bus.id">
+                    <div class="bus-card">
+                      <div>
+                        <div class="bus-card-header">
+                          <span class="bus-icon">🚌</span>
+                          <h3 class="bus-route" x-text="bus.route"></h3>
+                        </div>
+                        
+                        <div class="bus-price" x-text="formatMoney(bus.price)"></div>
+                        
+                        <div class="bus-details">
+                          <div class="detail-item">
+                            <span class="detail-label">Ngày khởi hành:</span>
+                            <span class="detail-value" x-text="bus.departureTime"></span>
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">Số phiếu khả dụng:</span>
+                            <span class="detail-value highlight" x-text="bus.availableSeats"></span>
+                          </div>
+                          <div class="detail-item">
+                            <span class="detail-label">Tổng ghế ngồi:</span>
+                            <span class="detail-value" x-text="bus.totalSeats"></span>
+                          </div>
+                        </div>
+                      </div>
 
-                    <button @click="selectBus(bus)">Select</button>
-                  </div>
-                </template>
+                      <button class="select-btn" @click="selectBus(bus)">Select Bus</button>
+                    </div>
+                  </template>
+                </div>
               </div>
             </template>
             <template x-if="step===2">
-              <div>
-                <h2>
-                  Seats for:
-                  <span x-text="selectedBus.route"></span>
-                </h2>
-
-                <div class="seat-grid">
-                  <template x-for="seat in seats" :key="seat.id">
-                    <div
-                      class="seat"
-                      :class="{
-                        selected: isSelected(seat.code),
-                        booked: seat.status === 'BOOKED'
-                      }"
-                      @click="toggleSeat(seat)"
-                      x-text="seat.code"
-                    ></div>
-                  </template>
+              <div class="seat-selection-container">
+                <!-- Header with Back Button -->
+                <div class="booking-header">
+                  <button class="back-btn" @click="goBack()">
+                    <span class="back-arrow">←</span> Quay lại chọn xe
+                  </button>
+                  <h2 class="booking-title">
+                    Sơ đồ ghế: <span x-text="selectedBus.route"></span>
+                  </h2>
                 </div>
 
-                <div class="card">
-                  <p>
-                    Selected:
-                    <span x-text="selectedSeats.join(', ') || '-'"></span>
-                  </p>
+                <div class="booking-layout-grid">
+                  <!-- Left Side: Bus Cabin Map -->
+                  <div class="cabin-card">
+                    <div class="bus-cabin">
+                      <!-- Bus Front Indicator (Windshield & Steering Wheel) -->
+                      <div class="bus-front">
+                        <span class="windshield">Đầu xe / Windshield 🛡️</span>
+                        <span class="steering-wheel">🎡</span>
+                      </div>
+                      
+                      <!-- Seat Grid -->
+                      <div class="seat-grid">
+                        <template x-for="(seat, index) in seats" :key="seat.id">
+                          <div
+                            class="seat"
+                            :class="{
+                              selected: isSelected(seat.code),
+                              booked: seat.status === 'BOOKED',
+                              'aisle-seat': index % 6 === 2,
+                              'last-in-row': index % 6 === 5
+                            }"
+                            @click="toggleSeat(seat)"
+                            x-text="seat.code"
+                          ></div>
+                        </template>
+                      </div>
+                    </div>
 
-                  <p>
-                    Total:
-                    <span x-text="formatMoney(totalAmount())"></span>
-                  </p>
+                    <!-- Seat Legend -->
+                    <div class="seat-legend">
+                      <div class="legend-item">
+                        <span class="legend-dot seat-available"></span>
+                        <span>Còn trống</span>
+                      </div>
+                      <div class="legend-item">
+                        <span class="legend-dot seat-selected"></span>
+                        <span>Đang chọn</span>
+                      </div>
+                      <div class="legend-item">
+                        <span class="legend-dot seat-booked"></span>
+                        <span>Đã đặt</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Right Side: Booking Summary Card -->
+                  <div class="summary-card">
+                    <h3>Chi tiết đặt vé</h3>
+                    
+                    <div class="summary-details">
+                      <div class="summary-row">
+                        <span class="summary-label">Tuyến đường:</span>
+                        <span class="summary-value" x-text="selectedBus.route"></span>
+                      </div>
+                      <div class="summary-row">
+                        <span class="summary-label">Khởi hành:</span>
+                        <span class="summary-value" x-text="selectedBus.departureTime"></span>
+                      </div>
+                      <div class="summary-row">
+                        <span class="summary-label">Giá vé / ghế:</span>
+                        <span class="summary-value" x-text="formatMoney(selectedBus.price)"></span>
+                      </div>
+                      <hr class="summary-divider" />
+                      <div class="summary-row">
+                        <span class="summary-label">Ghế đã chọn:</span>
+                        <span class="summary-value highlight-seats" x-text="selectedSeats.join(', ') || '-'"></span>
+                      </div>
+                      <div class="summary-row total">
+                        <span class="summary-label">Tổng cộng:</span>
+                        <span class="summary-value total-price" x-text="formatMoney(totalAmount())"></span>
+                      </div>
+                    </div>
+
+                    <button 
+                      class="checkout-btn" 
+                      :disabled="selectedSeats.length === 0"
+                      @click="alert('Đặt vé thành công cho các ghế: ' + selectedSeats.join(', '))"
+                    >
+                      Tiến hành đặt vé
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
