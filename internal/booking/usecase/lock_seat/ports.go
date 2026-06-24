@@ -23,9 +23,6 @@ type SeatLockPort interface {
 }
 
 type EventPublisher interface {
-	PublishSeatLocked(
-		ctx context.Context,
-		busID uuid.UUID,
-		seatCodes []string,
-	) error
+	PublishSeatLocked(busID string, seatID string, seatCode string, tempUserID string) error
+	PublishSeatReleased(busID string, seatID string, seatCode string) error
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
+	"booking-system/internal/booking/delivery/ws"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
@@ -33,6 +34,15 @@ func main() {
 	txManager := database.NewTransaction(db)
 
 	redisClient := redis.NewClient(&cfg.Redis)
+
+	// Web socket
+	hub := ws.NewHub()
+	go hub.Run()
+
+	h := ws.NewHandler(hub)
+
+	eventPublisher := provider.NewWSEventPublisher(hub)
+
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
@@ -41,11 +51,11 @@ func main() {
 
 	busProvider := provider.NewBusProvider(busRepo, seatRepo)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
-	// publisher := ws.NewNoopPublisher()
+
 	lockSeatUsecase := lockseatUC.New(
 		busProvider,
 		seatLockRepo,
-		// publisher,
+		eventPublisher,
 	)
 
 	r := gin.Default()
@@ -58,6 +68,8 @@ func main() {
 
 	httpBusDelivery.RegiserBusRouter(api, busHandler)
 	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase))
+
+	r.GET("/ws/buses/:id", h.Handle)
 
 	r.Run(":" + cfg.Port)
 }

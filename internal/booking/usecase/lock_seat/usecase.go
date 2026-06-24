@@ -7,20 +7,20 @@ import (
 )
 
 type LockSeatUsecase struct {
-	busPort      ports.BusProvider
-	seatLockPort SeatLockPort
-	// eventPublisher EventPublisher
+	busPort        ports.BusProvider
+	seatLockPort   SeatLockPort
+	eventPublisher EventPublisher
 }
 
 func New(
 	busPort ports.BusProvider,
 	seatLockPort SeatLockPort,
-	// eventPublisher EventPublisher,
+	eventPublisher EventPublisher,
 ) *LockSeatUsecase {
 	return &LockSeatUsecase{
-		busPort:      busPort,
-		seatLockPort: seatLockPort,
-		// eventPublisher: eventPublisher,
+		busPort:        busPort,
+		seatLockPort:   seatLockPort,
+		eventPublisher: eventPublisher,
 	}
 }
 
@@ -61,6 +61,18 @@ func (u *LockSeatUsecase) Execute(
 		if seat.Status == "BOOKED" {
 			return nil, ErrSeatAlreadyBooked
 		}
+
+		// broadcast event to notify other services about the locked seats
+
+		err = u.eventPublisher.PublishSeatLocked(
+			input.BusID.String(),
+			seat.ID.String(),
+			seat.SeatCode,
+			input.TempUserID.String(),
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Lock the seats using the SeatLockPort
@@ -73,11 +85,6 @@ func (u *LockSeatUsecase) Execute(
 	if err != nil {
 		return nil, err
 	}
-	// broadcast event to notify other services about the locked seats
-	// _ = u.eventPublisher.PublishSeatLocked(
-	// 	ctx,
-	// 	input.BusID,
-	// 	input.SeatCodes,
-	// )
+
 	return &dto.LockSeatResponse{Success: true}, nil
 }
