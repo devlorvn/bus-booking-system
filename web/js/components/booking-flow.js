@@ -1,5 +1,7 @@
 document.addEventListener("alpine:init", () => {
   Alpine.data("bookingFlow", () => ({
+    booking: false,
+
     get buses() {
       return Alpine.store("bus").buses;
     },
@@ -18,6 +20,10 @@ document.addEventListener("alpine:init", () => {
 
     get step() {
       return Alpine.store("booking").step;
+    },
+
+    get tempUserId() {
+      return Alpine.store("booking").tempUserId;
     },
 
     async selectBus(bus) {
@@ -60,6 +66,30 @@ document.addEventListener("alpine:init", () => {
     goBack() {
       Alpine.store("booking").reset();
       Alpine.store("bus").clearSelectedBus();
+    },
+
+    async bookSeats() {
+      if (this.selectedSeats.length === 0 || this.booking) return;
+
+      this.booking = true;
+      try {
+        await BookingAPI.lockSeats(
+          this.selectedBus.id,
+          this.tempUserId,
+          this.selectedSeats
+        );
+
+        alert(`Đặt vé thành công cho các ghế: ${this.selectedSeats.join(', ')}`);
+        
+        // Reset booking flow
+        Alpine.store("booking").reset();
+        Alpine.store("bus").clearSelectedBus();
+      } catch (err) {
+        console.error(err);
+        alert(`Đặt vé thất bại: ${err.message}`);
+      } finally {
+        this.booking = false;
+      }
     },
 
     formatMoney(value) {

@@ -1,326 +1,291 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bus Booking System</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="./styles/main.css" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bus Booking System</title>
 
-    <script defer src="./js/stores/bus.js"></script>
-    <script defer src="./js/stores/booking.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/main.css" />
 
-    <script defer src="./js/api/bus.js"></script>
-    <script defer src="./js/api/booking.js"></script>
+  <script defer src="./js/api/bus.js"></script>
+  <script defer src="./js/api/booking.js"></script>
 
-    <script defer src="./js/components/bus-management.js"></script>
-    <script defer src="./js/components/booking-flow.js"></script>
+  <script defer src="./js/stores/bus.js"></script>
+  <script defer src="./js/stores/booking.js"></script>
 
-    <script defer src="./js/app.js"></script>
+  <script defer src="./js/components/bus-management.js"></script>
+  <script defer src="./js/components/booking-flow.js"></script>
 
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-  </head>
+  <script defer src="./js/app.js"></script>
 
-  <body x-data="app">
-    <header class="topbar">
-      <h1>🚌 Bus Booking System</h1>
-    </header>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
 
-    <div class="layout">
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <h2>Debug Panel</h2>
+<body x-data="app">
+  <header class="topbar">
+    <h1>🚌 Bus Booking System</h1>
+  </header>
 
-        <div class="card">
-          <p>
-            Selected Bus:
-            <span x-text="$store.bus.selectedBus?.route || 'None'"></span>
-          </p>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2>Debug Panel</h2>
 
-          <p>
-            Booking Step:
-            <span x-text="$store.booking.step"></span>
-          </p>
+      <div class="card">
+        <p>
+          Selected Bus:
+          <span x-text="$store.bus.selectedBus?.route || 'None'"></span>
+        </p>
 
-          <p>
-            Selected Seats:
-            <span
-              x-text="$store.booking.selectedSeats.join(', ') || '-'"
-            ></span>
-          </p>
-        </div>
-      </aside>
+        <p>
+          Booking Step:
+          <span x-text="$store.booking.step"></span>
+        </p>
 
-      <!-- Main -->
-      <main class="main">
-        <div class="nav-tabs">
-          <button
-            :class="{ active: currentPage==='bus-management' }"
-            @click="changePage('bus-management')"
-          >
-            Bus Management
-          </button>
+        <p>
+          Selected Seats:
+          <span x-text="$store.booking.selectedSeats.join(', ') || '-'"></span>
+        </p>
+      </div>
+    </aside>
 
-          <button
-            :class="{ active: currentPage==='booking' }"
-            @click="changePage('booking')"
-          >
-            Booking Flow
-          </button>
-        </div>
+    <!-- Main -->
+    <main class="main">
+      <div class="nav-tabs">
+        <button :class="{ active: currentPage==='bus-management' }" @click="changePage('bus-management')">
+          Bus Management
+        </button>
 
-        <template x-if="currentPage === 'bus-management'">
-          <section x-data="busManagement" x-init="init()">
-            <div class="bus-header">
-              <h2>Bus Management</h2>
-              <button @click="showCreateBusModal = true">+ Create Bus</button>
-            </div>
+        <button :class="{ active: currentPage==='booking' }" @click="changePage('booking')">
+          Booking Flow
+        </button>
+      </div>
 
-            <template x-if="loading">
-              <p>Loading buses...</p>
-            </template>
+      <template x-if="currentPage === 'bus-management'">
+        <section x-data="busManagement" x-init="init()">
+          <div class="bus-header">
+            <h2>Bus Management</h2>
+            <button @click="showCreateBusModal = true">+ Create Bus</button>
+          </div>
 
-            <template x-if="!loading">
-              <div>
-                <table class="bus-table">
-                  <thead>
+          <template x-if="loading">
+            <p>Loading buses...</p>
+          </template>
+
+          <template x-if="!loading">
+            <div>
+              <table class="bus-table">
+                <thead>
+                  <tr>
+                    <th>Plate</th>
+                    <th>Route</th>
+                    <th>Departure</th>
+                    <th>Price</th>
+                    <th>Seats</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <template x-for="bus in buses" :key="bus.id">
                     <tr>
-                      <th>Plate</th>
-                      <th>Route</th>
-                      <th>Departure</th>
-                      <th>Price</th>
-                      <th>Seats</th>
+                      <td x-text="bus.licensePlate"></td>
+                      <td x-text="bus.route"></td>
+                      <td x-text="bus.departureTime"></td>
+                      <td x-text="formatMoney(bus.price)"></td>
+                      <td>
+                        <span x-text="bus.availableSeats"></span> /
+                        <span x-text="bus.totalSeats"></span>
+                      </td>
                     </tr>
-                  </thead>
+                  </template>
+                </tbody>
+              </table>
 
-                  <tbody>
-                    <template x-for="bus in buses" :key="bus.id">
-                      <tr>
-                        <td x-text="bus.licensePlate"></td>
-                        <td x-text="bus.route"></td>
-                        <td x-text="bus.departureTime"></td>
-                        <td x-text="formatMoney(bus.price)"></td>
-                        <td>
-                          <span x-text="bus.availableSeats"></span> /
-                          <span x-text="bus.totalSeats"></span>
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
+              <template x-if="buses.length === 0">
+                <p>No buses found</p>
+              </template>
+            </div>
+          </template>
 
-                <template x-if="buses.length === 0">
-                  <p>No buses found</p>
+          <!-- MODAL -->
+          <template x-if="showCreateBusModal">
+            <div class="modal-backdrop">
+              <div class="modal">
+                <h3>Create Bus</h3>
+
+                <input x-model="newBus.licensePlate" placeholder="License Plate" />
+                <input x-model="newBus.from" placeholder="From" />
+                <input x-model="newBus.to" placeholder="To" />
+
+                <input x-model="newBus.departureTime" type="datetime-local" />
+
+                <input x-model.number="newBus.price" type="number" placeholder="Price" />
+
+                <input x-model.number="newBus.totalSeats" type="number" placeholder="Total Seats" />
+
+                <input x-model="newBus.rowNames" placeholder="A,B,C,D" />
+
+                <input x-model.number="newBus.seatsPerRow" type="number" placeholder="Seats Per Row" />
+
+                <div class="modal-actions">
+                  <button @click="showCreateBusModal = false">Cancel</button>
+
+                  <button @click="createBus()">Create</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </section>
+      </template>
+
+      <template x-if="currentPage === 'booking'">
+        <section x-data="bookingFlow">
+          <!-- Booking Steps Indicator -->
+          <div class="booking-steps-indicator">
+            <div class="step-indicator-item" :class="{ active: step === 1, completed: step > 1 }">
+              <span class="step-num">1</span>
+              <span class="step-text">Chọn chuyến xe</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-indicator-item" :class="{ active: step === 2, completed: step > 2 }">
+              <span class="step-num">2</span>
+              <span class="step-text">Chọn ghế ngồi</span>
+            </div>
+          </div>
+
+          <template x-if="step===1">
+            <div>
+              <h2>Select Bus</h2>
+
+              <div class="bus-grid">
+                <template x-for="bus in buses" :key="bus.id">
+                  <div class="bus-card">
+                    <div>
+                      <div class="bus-card-header">
+                        <span class="bus-icon">🚌</span>
+                        <h3 class="bus-route" x-text="bus.route"></h3>
+                      </div>
+
+                      <div class="bus-price" x-text="formatMoney(bus.price)"></div>
+
+                      <div class="bus-details">
+                        <div class="detail-item">
+                          <span class="detail-label">Ngày khởi hành:</span>
+                          <span class="detail-value" x-text="bus.departureTime"></span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="detail-label">Số phiếu khả dụng:</span>
+                          <span class="detail-value highlight" x-text="bus.availableSeats"></span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="detail-label">Tổng ghế ngồi:</span>
+                          <span class="detail-value" x-text="bus.totalSeats"></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button class="select-btn" @click="selectBus(bus)">Select Bus</button>
+                  </div>
                 </template>
               </div>
-            </template>
-
-            <!-- MODAL -->
-            <template x-if="showCreateBusModal">
-              <div class="modal-backdrop">
-                <div class="modal">
-                  <h3>Create Bus</h3>
-
-                  <input
-                    x-model="newBus.licensePlate"
-                    placeholder="License Plate"
-                  />
-                  <input x-model="newBus.from" placeholder="From" />
-                  <input x-model="newBus.to" placeholder="To" />
-
-                  <input x-model="newBus.departureTime" type="datetime-local" />
-
-                  <input
-                    x-model.number="newBus.price"
-                    type="number"
-                    placeholder="Price"
-                  />
-
-                  <input
-                    x-model.number="newBus.totalSeats"
-                    type="number"
-                    placeholder="Total Seats"
-                  />
-
-                  <input x-model="newBus.rowNames" placeholder="A,B,C,D" />
-
-                  <input
-                    x-model.number="newBus.seatsPerRow"
-                    type="number"
-                    placeholder="Seats Per Row"
-                  />
-
-                  <div class="modal-actions">
-                    <button @click="showCreateBusModal = false">Cancel</button>
-
-                    <button @click="createBus()">Create</button>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </section>
-        </template>
-
-        <template x-if="currentPage === 'booking'">
-          <section x-data="bookingFlow">
-            <!-- Booking Steps Indicator -->
-            <div class="booking-steps-indicator">
-              <div class="step-indicator-item" :class="{ active: step === 1, completed: step > 1 }">
-                <span class="step-num">1</span>
-                <span class="step-text">Chọn chuyến xe</span>
-              </div>
-              <div class="step-line"></div>
-              <div class="step-indicator-item" :class="{ active: step === 2, completed: step > 2 }">
-                <span class="step-num">2</span>
-                <span class="step-text">Chọn ghế ngồi</span>
-              </div>
             </div>
-
-            <template x-if="step===1">
-              <div>
-                <h2>Select Bus</h2>
-
-                <div class="bus-grid">
-                  <template x-for="bus in buses" :key="bus.id">
-                    <div class="bus-card">
-                      <div>
-                        <div class="bus-card-header">
-                          <span class="bus-icon">🚌</span>
-                          <h3 class="bus-route" x-text="bus.route"></h3>
-                        </div>
-                        
-                        <div class="bus-price" x-text="formatMoney(bus.price)"></div>
-                        
-                        <div class="bus-details">
-                          <div class="detail-item">
-                            <span class="detail-label">Ngày khởi hành:</span>
-                            <span class="detail-value" x-text="bus.departureTime"></span>
-                          </div>
-                          <div class="detail-item">
-                            <span class="detail-label">Số phiếu khả dụng:</span>
-                            <span class="detail-value highlight" x-text="bus.availableSeats"></span>
-                          </div>
-                          <div class="detail-item">
-                            <span class="detail-label">Tổng ghế ngồi:</span>
-                            <span class="detail-value" x-text="bus.totalSeats"></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button class="select-btn" @click="selectBus(bus)">Select Bus</button>
-                    </div>
-                  </template>
-                </div>
+          </template>
+          <template x-if="step===2">
+            <div class="seat-selection-container">
+              <!-- Header with Back Button -->
+              <div class="booking-header">
+                <button class="back-btn" @click="goBack()">
+                  <span class="back-arrow">←</span> Quay lại chọn xe
+                </button>
+                <h2 class="booking-title">
+                  Sơ đồ ghế: <span x-text="selectedBus.route"></span>
+                </h2>
               </div>
-            </template>
-            <template x-if="step===2">
-              <div class="seat-selection-container">
-                <!-- Header with Back Button -->
-                <div class="booking-header">
-                  <button class="back-btn" @click="goBack()">
-                    <span class="back-arrow">←</span> Quay lại chọn xe
-                  </button>
-                  <h2 class="booking-title">
-                    Sơ đồ ghế: <span x-text="selectedBus.route"></span>
-                  </h2>
-                </div>
 
-                <div class="booking-layout-grid">
-                  <!-- Left Side: Bus Cabin Map -->
-                  <div class="cabin-card">
-                    <div class="bus-cabin">
-                      <!-- Bus Front Indicator (Windshield & Steering Wheel) -->
-                      <div class="bus-front">
-                        <span class="windshield">Đầu xe / Windshield 🛡️</span>
-                        <span class="steering-wheel">🎡</span>
-                      </div>
-                      
-                      <!-- Seat Grid -->
-                      <div class="seat-grid">
-                        <template x-for="(seat, index) in seats" :key="seat.id">
-                          <div
-                            class="seat"
-                            :class="{
+              <div class="booking-layout-grid">
+                <!-- Left Side: Bus Cabin Map -->
+                <div class="cabin-card">
+                  <div class="bus-cabin">
+                    <!-- Bus Front Indicator (Windshield & Steering Wheel) -->
+                    <div class="bus-front">
+                      <span class="windshield">Đầu xe / Windshield 🛡️</span>
+                      <span class="steering-wheel">🎡</span>
+                    </div>
+
+                    <!-- Seat Grid -->
+                    <div class="seat-grid">
+                      <template x-for="(seat, index) in seats" :key="seat.id">
+                        <div class="seat" :class="{
                               selected: isSelected(seat.code),
                               booked: seat.status === 'BOOKED',
                               'aisle-seat': index % 6 === 2,
                               'last-in-row': index % 6 === 5
-                            }"
-                            @click="toggleSeat(seat)"
-                            x-text="seat.code"
-                          ></div>
-                        </template>
-                      </div>
-                    </div>
-
-                    <!-- Seat Legend -->
-                    <div class="seat-legend">
-                      <div class="legend-item">
-                        <span class="legend-dot seat-available"></span>
-                        <span>Còn trống</span>
-                      </div>
-                      <div class="legend-item">
-                        <span class="legend-dot seat-selected"></span>
-                        <span>Đang chọn</span>
-                      </div>
-                      <div class="legend-item">
-                        <span class="legend-dot seat-booked"></span>
-                        <span>Đã đặt</span>
-                      </div>
+                            }" @click="toggleSeat(seat)" x-text="seat.code"></div>
+                      </template>
                     </div>
                   </div>
 
-                  <!-- Right Side: Booking Summary Card -->
-                  <div class="summary-card">
-                    <h3>Chi tiết đặt vé</h3>
-                    
-                    <div class="summary-details">
-                      <div class="summary-row">
-                        <span class="summary-label">Tuyến đường:</span>
-                        <span class="summary-value" x-text="selectedBus.route"></span>
-                      </div>
-                      <div class="summary-row">
-                        <span class="summary-label">Khởi hành:</span>
-                        <span class="summary-value" x-text="selectedBus.departureTime"></span>
-                      </div>
-                      <div class="summary-row">
-                        <span class="summary-label">Giá vé / ghế:</span>
-                        <span class="summary-value" x-text="formatMoney(selectedBus.price)"></span>
-                      </div>
-                      <hr class="summary-divider" />
-                      <div class="summary-row">
-                        <span class="summary-label">Ghế đã chọn:</span>
-                        <span class="summary-value highlight-seats" x-text="selectedSeats.join(', ') || '-'"></span>
-                      </div>
-                      <div class="summary-row total">
-                        <span class="summary-label">Tổng cộng:</span>
-                        <span class="summary-value total-price" x-text="formatMoney(totalAmount())"></span>
-                      </div>
+                  <!-- Seat Legend -->
+                  <div class="seat-legend">
+                    <div class="legend-item">
+                      <span class="legend-dot seat-available"></span>
+                      <span>Còn trống</span>
                     </div>
-
-                    <button 
-                      class="checkout-btn" 
-                      :disabled="selectedSeats.length === 0"
-                      @click="alert('Đặt vé thành công cho các ghế: ' + selectedSeats.join(', '))"
-                    >
-                      Tiến hành đặt vé
-                    </button>
+                    <div class="legend-item">
+                      <span class="legend-dot seat-selected"></span>
+                      <span>Đang chọn</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-dot seat-booked"></span>
+                      <span>Đã đặt</span>
+                    </div>
                   </div>
                 </div>
+
+                <!-- Right Side: Booking Summary Card -->
+                <div class="summary-card">
+                  <h3>Chi tiết đặt vé</h3>
+
+                  <div class="summary-details">
+                    <div class="summary-row">
+                      <span class="summary-label">Tuyến đường:</span>
+                      <span class="summary-value" x-text="selectedBus.route"></span>
+                    </div>
+                    <div class="summary-row">
+                      <span class="summary-label">Khởi hành:</span>
+                      <span class="summary-value" x-text="selectedBus.departureTime"></span>
+                    </div>
+                    <div class="summary-row">
+                      <span class="summary-label">Giá vé / ghế:</span>
+                      <span class="summary-value" x-text="formatMoney(selectedBus.price)"></span>
+                    </div>
+                    <hr class="summary-divider" />
+                    <div class="summary-row">
+                      <span class="summary-label">Ghế đã chọn:</span>
+                      <span class="summary-value highlight-seats" x-text="selectedSeats.join(', ') || '-'"></span>
+                    </div>
+                    <div class="summary-row total">
+                      <span class="summary-label">Tổng cộng:</span>
+                      <span class="summary-value total-price" x-text="formatMoney(totalAmount())"></span>
+                    </div>
+                  </div>
+
+                  <button class="checkout-btn" :disabled="selectedSeats.length === 0 || booking" @click="bookSeats()">
+                    <span x-show="!booking">Tiến hành đặt vé</span>
+                    <span x-show="booking">Đang đặt vé...</span>
+                  </button>
+                </div>
               </div>
-            </template>
-          </section>
-        </template>
-      </main>
-    </div>
-  </body>
+            </div>
+          </template>
+        </section>
+      </template>
+    </main>
+  </div>
+</body>
+
 </html>

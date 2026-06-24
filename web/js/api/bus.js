@@ -1,5 +1,3 @@
-const API_BASE = "http://localhost:8080/api";
-
 const BusAPI = {
   async list() {
     const response = await fetch(`${API_BASE}/buses`);
