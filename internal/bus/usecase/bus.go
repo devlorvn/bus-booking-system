@@ -15,11 +15,12 @@ import (
 type BusUsecase struct {
 	repo        repository.BusRepository
 	seatUsecase *SeatUsecase
+	seatPort    SeatPort
 	tx          shared.Transaction
 }
 
-func NewBusUsecase(repo repository.BusRepository, seatUsecase *SeatUsecase, tx shared.Transaction) *BusUsecase {
-	return &BusUsecase{repo: repo, seatUsecase: seatUsecase, tx: tx}
+func NewBusUsecase(repo repository.BusRepository, seatUsecase *SeatUsecase, seatPort SeatPort, tx shared.Transaction) *BusUsecase {
+	return &BusUsecase{repo: repo, seatUsecase: seatUsecase, seatPort: seatPort, tx: tx}
 }
 
 func (u *BusUsecase) Create(ctx context.Context, req dto.CreateBusRequest) (*domain.Bus, error) {
@@ -101,6 +102,17 @@ func (u *BusUsecase) GetSeats(ctx context.Context, busID uuid.UUID) ([]*domain.S
 	if err != nil {
 		return nil, err
 	}
+
+	for _, seat := range seats {
+		isLocked, err := u.seatPort.IsSeatLocked(ctx, busID, seat.SeatCode)
+		if err != nil {
+			return nil, err
+		}
+		if isLocked {
+			seat.Status = "LOCKED"
+		}
+	}
+
 	return seats, nil
 }
 

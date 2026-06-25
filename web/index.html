@@ -222,12 +222,12 @@
                     <div class="seat-grid">
                       <template x-for="(seat, index) in seats" :key="seat.id">
                         <div class="seat" :class="{
-                              selected: isSelected(seat.code),
-                              booked: seat.status === 'BOOKED',
-                              'aisle-seat': index % 6 === 2,
-                              'last-in-row': index % 6 === 5,
-                              locked: seat.locked,
-                            }" @click="toggleSeat(seat)" x-text="seat.code"></div>
+                               selected: isSelected(seat.code),
+                               booked: seat.status === 'BOOKED',
+                               'aisle-seat': index % 6 === 2,
+                               'last-in-row': index % 6 === 5,
+                               locked: seat.status === 'LOCKED',
+                             }" @click="toggleSeat(seat)" x-text="seat.code"></div>
                       </template>
                     </div>
                   </div>
@@ -241,6 +241,10 @@
                     <div class="legend-item">
                       <span class="legend-dot seat-selected"></span>
                       <span>Đang chọn</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-dot seat-locked"></span>
+                      <span>Đang khóa</span>
                     </div>
                     <div class="legend-item">
                       <span class="legend-dot seat-booked"></span>

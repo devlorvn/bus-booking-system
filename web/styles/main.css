@@ -679,9 +679,17 @@ button:hover {
 }
 
 .seat.locked {
-  background: orange;
-  color: white;
+  background: #ffedd5;
+  color: #ea580c;
+  border-color: #fed7aa;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.seat.locked:hover {
+  transform: none;
+  background: #ffedd5;
+  box-shadow: none;
 }
 
 /* Legend Styling */
@@ -719,6 +727,11 @@ button:hover {
 .seat-selected {
   background: #fef9c3;
   border: 2px solid #fef08a;
+}
+
+.seat-locked {
+  background: #ffedd5;
+  border: 2px solid #fed7aa;
 }
 
 .seat-booked {

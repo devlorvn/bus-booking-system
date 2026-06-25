@@ -45,9 +45,6 @@ func main() {
 
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
-	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
-	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, txManager)
-	busHandler := httpBusHandler.NewBusHandler(busUsecase)
 
 	busProvider := provider.NewBusProvider(busRepo, seatRepo)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
@@ -57,6 +54,10 @@ func main() {
 		seatLockRepo,
 		eventPublisher,
 	)
+
+	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
+	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, seatLockRepo, txManager)
+	busHandler := httpBusHandler.NewBusHandler(busUsecase)
 
 	r := gin.Default()
 

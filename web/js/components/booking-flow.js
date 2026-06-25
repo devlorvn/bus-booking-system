@@ -56,7 +56,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     toggleSeat(seat) {
-      if (seat.booked || seat.locked) {
+      if (seat.status === 'BOOKED' || seat.status === 'LOCKED') {
         return;
       }
       const idx = this.selectedSeats.indexOf(seat.code);
@@ -147,7 +147,7 @@ document.addEventListener("alpine:init", () => {
 
       if (!seat) return;
 
-      seat.locked = true;
+      seat.status = 'LOCKED';
 
       console.log("Seat locked:", seat.code);
     },
@@ -158,7 +158,7 @@ document.addEventListener("alpine:init", () => {
 
       if (!seat) return;
 
-      seat.locked = false;
+      seat.status = 'AVAILABLE';
 
       console.log("Seat released:", seat.code);
     },

@@ -100,6 +100,19 @@ func (r *LockSeatRepository) ReleaseSeatLocks(
 	return nil
 }
 
+func (r *LockSeatRepository) IsSeatLocked(
+	ctx context.Context,
+	busID uuid.UUID,
+	seatCode string,
+) (bool, error) {
+	key := buildSeatLockKey(busID, seatCode)
+	exist, err := r.client.Exists(ctx, key).Result()
+	if err != nil {
+		return false, err
+	}
+	return exist == 1, nil
+}
+
 func buildSeatLockKey(
 	busID uuid.UUID,
 	seatCode string,
