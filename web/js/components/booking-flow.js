@@ -132,7 +132,7 @@ document.addEventListener("alpine:init", () => {
           this.handleSeatLocked(message.data);
           break;
 
-        case "seat_released":
+        case "seat_unlocked":
           this.handleSeatReleased(message.data);
           break;
 

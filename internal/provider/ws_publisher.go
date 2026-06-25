@@ -2,14 +2,14 @@ package provider
 
 import (
 	"booking-system/internal/booking/delivery/ws"
-	lockseat "booking-system/internal/booking/usecase/lock_seat"
+	"booking-system/internal/booking/ports"
 )
 
 type WSEventPublisher struct {
 	hub *ws.Hub
 }
 
-func NewWSEventPublisher(hub *ws.Hub) lockseat.EventPublisher {
+func NewWSEventPublisher(hub *ws.Hub) ports.EventPublisher {
 	return &WSEventPublisher{
 		hub: hub,
 	}
@@ -37,14 +37,12 @@ func (p *WSEventPublisher) PublishSeatLocked(
 
 func (p *WSEventPublisher) PublishSeatReleased(
 	busID string,
-	seatID string,
 	seatCode string,
 ) error {
 	msg := ws.BroadcastMessage{
 		Event: ws.EventTypeSeatUnlocked,
 		Data: ws.SeatUnlockPayload{
 			BusID:    busID,
-			SeatID:   seatID,
 			SeatCode: seatCode,
 		},
 	}

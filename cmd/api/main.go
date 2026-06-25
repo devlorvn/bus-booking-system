@@ -3,6 +3,7 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
+	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/delivery/ws"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
@@ -14,11 +15,16 @@ import (
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/middleware"
+	"context"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	defer cancel()
 	cfg := configs.LoadConfig()
 	db, err := postgres.NewPostgres(&cfg.Database)
 	if err != nil {
@@ -42,6 +48,12 @@ func main() {
 	h := ws.NewHandler(hub)
 
 	eventPublisher := provider.NewWSEventPublisher(hub)
+	lockExpirationWorker := worker.NewLockExpirationWorker(redisClient, eventPublisher)
+	go func() {
+		if err := lockExpirationWorker.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)

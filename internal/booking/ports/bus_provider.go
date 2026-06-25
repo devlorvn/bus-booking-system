@@ -20,3 +20,8 @@ type BusProvider interface {
 		codes []string,
 	) ([]*busDomain.Seat, error)
 }
+
+type EventPublisher interface {
+	PublishSeatLocked(busID string, seatID string, seatCode string, tempUserID string) error
+	PublishSeatReleased(busID string, seatCode string) error
+}

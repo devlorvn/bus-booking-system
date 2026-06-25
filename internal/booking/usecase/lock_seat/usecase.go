@@ -9,13 +9,13 @@ import (
 type LockSeatUsecase struct {
 	busPort        ports.BusProvider
 	seatLockPort   SeatLockPort
-	eventPublisher EventPublisher
+	eventPublisher ports.EventPublisher
 }
 
 func New(
 	busPort ports.BusProvider,
 	seatLockPort SeatLockPort,
-	eventPublisher EventPublisher,
+	eventPublisher ports.EventPublisher,
 ) *LockSeatUsecase {
 	return &LockSeatUsecase{
 		busPort:        busPort,

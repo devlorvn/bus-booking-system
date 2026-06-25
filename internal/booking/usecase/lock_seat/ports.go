@@ -21,8 +21,3 @@ type SeatLockPort interface {
 		tempUserID string,
 	) error
 }
-
-type EventPublisher interface {
-	PublishSeatLocked(busID string, seatID string, seatCode string, tempUserID string) error
-	PublishSeatReleased(busID string, seatID string, seatCode string) error
-}

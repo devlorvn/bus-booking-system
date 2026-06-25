@@ -22,7 +22,6 @@ type SeatLockPayload struct {
 
 type SeatUnlockPayload struct {
 	BusID    string `json:"bus_id"`
-	SeatID   string `json:"seat_id"`
 	SeatCode string `json:"seat_code"`
 }
 
