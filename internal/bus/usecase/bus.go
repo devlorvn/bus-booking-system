@@ -103,12 +103,18 @@ func (u *BusUsecase) GetSeats(ctx context.Context, busID uuid.UUID) ([]*domain.S
 		return nil, err
 	}
 
+	seatCodes := make([]string, len(seats))
+	for i, seat := range seats {
+		seatCodes[i] = seat.SeatCode
+	}
+
+	lockedSeats, err := u.seatPort.GetLockedSeats(ctx, busID, seatCodes)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, seat := range seats {
-		isLocked, err := u.seatPort.IsSeatLocked(ctx, busID, seat.SeatCode)
-		if err != nil {
-			return nil, err
-		}
-		if isLocked {
+		if lockedSeats[seat.SeatCode] {
 			seat.Status = "LOCKED"
 		}
 	}

@@ -1,6 +1,10 @@
 package ws
 
-import "github.com/gorilla/websocket"
+import (
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 type Client struct {
 	Conn  *websocket.Conn
@@ -21,7 +25,10 @@ func (c *Client) WritePump() {
 
 func (c *Client) ReadPump() {
 	defer func() {
-		c.Hub.unregister <- c
+		select {
+		case c.Hub.unregister <- c:
+		case <-time.After(100 * time.Millisecond):
+		}
 		c.Conn.Close()
 	}()
 

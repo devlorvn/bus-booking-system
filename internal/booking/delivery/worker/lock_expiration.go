@@ -4,6 +4,7 @@ import (
 	"booking-system/internal/booking/ports"
 	"booking-system/pkg/shared/helpers"
 	"context"
+	"errors"
 	"log"
 	"strings"
 
@@ -35,7 +36,11 @@ func (w *LockExpirationWorker) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				log.Println("Redis pubsub channel closed, stopping worker.")
+				return errors.New("redis pubsub channel closed")
+			}
 			if msg == nil {
 				continue
 			}

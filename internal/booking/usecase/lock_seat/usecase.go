@@ -61,21 +61,9 @@ func (u *LockSeatUsecase) Execute(
 		if seat.Status == "BOOKED" {
 			return nil, ErrSeatAlreadyBooked
 		}
-
-		// broadcast event to notify other services about the locked seats
-
-		err = u.eventPublisher.PublishSeatLocked(
-			input.BusID.String(),
-			seat.ID.String(),
-			seat.SeatCode,
-			input.TempUserID.String(),
-		)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	// Lock the seats using the SeatLockPort
+	// Lock the seats using the SeatLockPort first
 	err = u.seatLockPort.AcquireSeatLocks(
 		ctx,
 		input.BusID,
@@ -84,6 +72,16 @@ func (u *LockSeatUsecase) Execute(
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// Broadcast events only after locks are successfully acquired
+	for _, seat := range seats {
+		_ = u.eventPublisher.PublishSeatLocked(
+			input.BusID.String(),
+			seat.ID.String(),
+			seat.SeatCode,
+			input.TempUserID.String(),
+		)
 	}
 
 	return &dto.LockSeatResponse{Success: true}, nil

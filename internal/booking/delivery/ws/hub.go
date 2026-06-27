@@ -1,5 +1,7 @@
 package ws
 
+import "context"
+
 type Hub struct {
 	rooms map[string]map[*Client]bool
 
@@ -17,9 +19,11 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) Run() {
+func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case client := <-h.register:
 			h.handleRegister(client)
 
@@ -45,8 +49,10 @@ func (h *Hub) handleUnregister(client *Client) {
 		return
 	}
 
-	delete(room, client)
-	close(client.Send)
+	if _, ok := room[client]; ok {
+		delete(room, client)
+		close(client.Send)
+	}
 
 	if len(room) == 0 {
 		delete(h.rooms, client.BusID)

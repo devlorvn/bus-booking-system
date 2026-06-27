@@ -166,16 +166,16 @@ func (u *ConfirmBookingUsecase) Execute(
 		if err != nil {
 			return err
 		}
-
-		err = u.publisher.PublishPaymentRequested(
-			ctx,
-			bookingID,
-		)
-		if err != nil {
-			return err
-		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = u.publisher.PublishPaymentRequested(
+		ctx,
+		bookingID,
+	)
 	if err != nil {
 		return nil, err
 	}

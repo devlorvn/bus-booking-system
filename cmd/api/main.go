@@ -43,7 +43,7 @@ func main() {
 
 	// Web socket
 	hub := ws.NewHub()
-	go hub.Run()
+	go hub.Run(ctx)
 
 	h := ws.NewHandler(hub)
 

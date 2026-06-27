@@ -76,6 +76,14 @@ func (r *LockSeatRepository) AcquireSeatLocks(
 	return nil
 }
 
+var releaseLockScript = goredis.NewScript(`
+	if redis.call("get", KEYS[1]) == ARGV[1] then
+		return redis.call("del", KEYS[1])
+	else
+		return 0
+	end
+`)
+
 func (r *LockSeatRepository) ReleaseSeatLocks(
 	ctx context.Context,
 	busID uuid.UUID,
@@ -84,16 +92,9 @@ func (r *LockSeatRepository) ReleaseSeatLocks(
 ) error {
 	for _, seatCode := range seatCodes {
 		key := buildSeatLockKey(busID, seatCode)
-		owner, err := r.client.Get(ctx, key).Result()
-		if err != nil {
-			continue
-		}
-
-		if owner != tempUserID {
-			continue
-		}
-		_, err = r.client.Del(ctx, key).Result()
-		if err != nil {
+		// To ensure atomicity of the operation, we use a Lua script.
+		_, err := releaseLockScript.Run(ctx, r.client, []string{key}, tempUserID).Result()
+		if err != nil && !errors.Is(err, goredis.Nil) {
 			return err
 		}
 	}
@@ -111,6 +112,33 @@ func (r *LockSeatRepository) IsSeatLocked(
 		return false, err
 	}
 	return exist == 1, nil
+}
+
+func (r *LockSeatRepository) GetLockedSeats(
+	ctx context.Context,
+	busID uuid.UUID,
+	seatCodes []string,
+) (map[string]bool, error) {
+	if len(seatCodes) == 0 {
+		return nil, nil
+	}
+	keys := make([]string, len(seatCodes))
+	for i, seatCode := range seatCodes {
+		keys[i] = buildSeatLockKey(busID, seatCode)
+	}
+
+	results, err := r.client.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	lockedSeats := make(map[string]bool)
+	for i, val := range results {
+		if val != nil {
+			lockedSeats[seatCodes[i]] = true
+		}
+	}
+	return lockedSeats, nil
 }
 
 func buildSeatLockKey(
