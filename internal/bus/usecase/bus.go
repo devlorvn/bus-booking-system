@@ -114,6 +114,10 @@ func (u *BusUsecase) GetSeats(ctx context.Context, busID uuid.UUID) ([]*domain.S
 	}
 
 	for _, seat := range seats {
+		if seat.Status == "BOOKED" {
+			continue
+		}
+
 		if lockedSeats[seat.SeatCode] {
 			seat.Status = "LOCKED"
 		}

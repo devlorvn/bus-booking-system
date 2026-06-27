@@ -47,6 +47,13 @@ type SeatLockPort interface {
 		seatCodes []string,
 		tempUserID string,
 	) error
+
+	ReleaseSeatLocks(
+		ctx context.Context,
+		busID uuid.UUID,
+		seatCodes []string,
+		tempUserID string,
+	) error
 }
 
 type PaymentEventPublisher interface {

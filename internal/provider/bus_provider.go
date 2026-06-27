@@ -38,3 +38,11 @@ func (p *BusProvider) GetSeatsByCodes(
 		codes,
 	)
 }
+
+func (p *BusProvider) BookSeats(
+	ctx context.Context,
+	busID uuid.UUID,
+	codes []string,
+) error {
+	return p.seatRepository.BookSeats(ctx, busID, codes)
+}

@@ -12,6 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	BOOKING_STATUS_PENDING_PAYMENT = "PENDING_PAYMENT"
+	BOOKING_STATUS_PAID            = "PAID"
+	BOOKING_STATUS_FAILED          = "FAILED"
+	BOOKING_STATUS_CANCELLED       = "CANCELLED"
+	BOOKING_STATUS_EXPIRED         = "EXPIRED"
+)
+
 type ConfirmBookingUsecase struct {
 	bookingRepo     BookingRepository
 	bookingSeatRepo BookingSeatRepository
@@ -106,6 +114,18 @@ func (u *ConfirmBookingUsecase) Execute(
 
 	var bookingID uuid.UUID
 	err = u.tx.Execute(ctx, func(txCtx context.Context) error {
+		err = u.busProvider.BookSeats(
+			txCtx,
+			req.BusID,
+			req.SeatCodes,
+		)
+		if err != nil {
+			if err.Error() == "SOME_SEATS_ALREADY_BOOKED" {
+				return ErrSeatAlreadyBooked
+			}
+			return err
+		}
+
 		user, err := u.userPort.FindByPhone(
 			txCtx,
 			req.PhoneNumber,
@@ -171,6 +191,14 @@ func (u *ConfirmBookingUsecase) Execute(
 	if err != nil {
 		return nil, err
 	}
+
+	// Release Redis temporary lock (only after successful DB commit)
+	_ = u.lockPort.ReleaseSeatLocks(
+		ctx,
+		req.BusID,
+		req.SeatCodes,
+		req.TempUserID,
+	)
 
 	err = u.publisher.PublishPaymentRequested(
 		ctx,

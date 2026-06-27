@@ -18,4 +18,9 @@ type SeatRepository interface {
 		busID uuid.UUID,
 		codes []string,
 	) ([]*domain.Seat, error)
+	BookSeats(
+		ctx context.Context,
+		busID uuid.UUID,
+		codes []string,
+	) error
 }

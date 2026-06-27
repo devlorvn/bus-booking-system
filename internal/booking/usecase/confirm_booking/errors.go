@@ -9,4 +9,5 @@ var (
 	ErrPhoneRequired    = errors.New("PHONE_REQUIRED")
 	ErrBusNotFound      = errors.New("BUS_NOT_FOUND")
 	ErrSeatNotFound     = errors.New("SEAT_NOT_FOUND")
+	ErrSeatAlreadyBooked = errors.New("SEAT_ALREADY_BOOKED")
 )

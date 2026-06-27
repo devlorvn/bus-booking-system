@@ -4,6 +4,7 @@ import (
 	"booking-system/internal/bus/domain"
 	"booking-system/pkg/database"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -72,4 +73,21 @@ func (r *SeatRepository) GetByBusAndCodes(
 		return nil, err
 	}
 	return seats, nil
+}
+
+func (r *SeatRepository) BookSeats(
+	ctx context.Context,
+	busID uuid.UUID,
+	codes []string,
+) error {
+	result := r.dbFromContext(ctx).Model(&domain.Seat{}).
+		Where("bus_id = ? AND seat_code IN ? AND status = ?", busID, codes, "AVAILABLE").
+		Update("status", "BOOKED")
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != int64(len(codes)) {
+		return errors.New("SOME_SEATS_ALREADY_BOOKED")
+	}
+	return nil
 }

@@ -19,6 +19,12 @@ type BusProvider interface {
 		busID uuid.UUID,
 		codes []string,
 	) ([]*busDomain.Seat, error)
+
+	BookSeats(
+		ctx context.Context,
+		busID uuid.UUID,
+		codes []string,
+	) error
 }
 
 type EventPublisher interface {
