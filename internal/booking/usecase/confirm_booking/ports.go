@@ -57,7 +57,7 @@ type SeatLockPort interface {
 }
 
 type PaymentEventPublisher interface {
-	PublishPaymentRequested(
+	PublishBookingCreated(
 		ctx context.Context,
 		bookingID uuid.UUID,
 	) error

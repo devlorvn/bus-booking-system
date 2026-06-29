@@ -5,6 +5,7 @@ import (
 	httpBooking "booking-system/internal/booking/delivery/http"
 	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/delivery/ws"
+	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
@@ -42,6 +43,17 @@ func main() {
 	txManager := database.NewTransaction(db)
 
 	redisClient := redis.NewClient(&cfg.Redis)
+
+	paymentBus := event.NewPaymentEventBus()
+
+	paymentPublisher := event.NewPaymentPublisher(paymentBus)
+	paymentWorker := worker.NewPaymentWorker(paymentBus)
+
+	go func() {
+		if err := paymentWorker.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	// Web socket
 	hub := ws.NewHub()
@@ -85,7 +97,7 @@ func main() {
 		busProvider,
 		pricingService,
 		txManager,
-		eventPublisher,
+		paymentPublisher,
 	)
 
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)

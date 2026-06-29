@@ -8,9 +8,9 @@ import (
 
 type User struct {
 	ID            uuid.UUID  `gorm:"type:uuid;primaryKey"`
-	Name          string     `gorm:"type:varchar(100);uniqueIndex"`
+	Name          string     `gorm:"type:varchar(100)"`
 	Email         string     `gorm:"type:varchar(100)"`
-	PhoneNumber   string     `gorm:"type:varchar(20)"`
+	PhoneNumber   string     `gorm:"type:varchar(20);uniqueIndex"`
 	LastBookingID *uuid.UUID `gorm:"type:uuid"`
 
 	LastBooking *Booking `gorm:"foreignKey:LastBookingID;constraint:OnDelete:SET NULL;" json:"last_booking"`

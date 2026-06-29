@@ -192,7 +192,6 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, err
 	}
 
-	// Release Redis temporary lock (only after successful DB commit)
 	_ = u.lockPort.ReleaseSeatLocks(
 		ctx,
 		req.BusID,
@@ -200,7 +199,7 @@ func (u *ConfirmBookingUsecase) Execute(
 		req.TempUserID,
 	)
 
-	err = u.publisher.PublishPaymentRequested(
+	err = u.publisher.PublishBookingCreated(
 		ctx,
 		bookingID,
 	)
