@@ -32,6 +32,30 @@ const BookingAPI = {
 
     return response.json();
   },
+
+  async confirmBooking(busId, tempUserId, seatCodes, name, phoneNumber, email) {
+    const response = await fetch(`${API_BASE}/bookings/confirm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bus_id: busId,
+        temp_user_id: tempUserId,
+        seat_codes: seatCodes,
+        name: name,
+        phone_number: phoneNumber,
+        email: email,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || "Failed to confirm booking");
+    }
+
+    return response.json();
+  },
 };
 
 window.BookingAPI = BookingAPI;

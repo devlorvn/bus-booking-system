@@ -9,4 +9,6 @@ func RegisterRoutes(
 	bookings := router.Group("/bookings")
 
 	bookings.POST("/lock", handler.LockSeat)
+	bookings.POST("/confirm", handler.ConfirmBooking)
+
 }

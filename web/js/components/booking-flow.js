@@ -73,12 +73,16 @@ document.addEventListener("alpine:init", () => {
       return this.selectedSeats.length * this.selectedBus.price;
     },
 
+    customerName: "",
+    customerPhone: "",
+    customerEmail: "",
+
     goBack() {
       Alpine.store("booking").reset();
       Alpine.store("bus").clearSelectedBus();
     },
 
-    async bookSeats() {
+    async lockSeats() {
       if (this.selectedSeats.length === 0 || this.booking) return;
 
       this.booking = true;
@@ -89,9 +93,43 @@ document.addEventListener("alpine:init", () => {
           this.selectedSeats
         );
 
-        alert(`Đặt vé thành công cho các ghế: ${this.selectedSeats.join(', ')}`);
+        // Transition to step 3 (Confirm Booking)
+        Alpine.store("booking").step = 3;
+      } catch (err) {
+        console.error(err);
+        alert(`Khóa ghế thất bại: ${err.message}`);
+      } finally {
+        this.booking = false;
+      }
+    },
 
-        // Reset booking flow
+    goBackToSeats() {
+      Alpine.store("booking").step = 2;
+    },
+
+    async confirmBooking() {
+      if (!this.customerName || !this.customerPhone) {
+        alert("Vui lòng điền đầy đủ họ tên và số điện thoại.");
+        return;
+      }
+
+      this.booking = true;
+      try {
+        const res = await BookingAPI.confirmBooking(
+          this.selectedBus.id,
+          this.tempUserId,
+          this.selectedSeats,
+          this.customerName,
+          this.customerPhone,
+          this.customerEmail
+        );
+
+        alert(`Đặt vé thành công! Mã đặt vé: ${res.data.booking_id}`);
+
+        // Reset inputs and flow
+        this.customerName = "";
+        this.customerPhone = "";
+        this.customerEmail = "";
         Alpine.store("booking").reset();
         Alpine.store("bus").clearSelectedBus();
       } catch (err) {

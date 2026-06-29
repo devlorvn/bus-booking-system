@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"booking-system/internal/booking/dto"
+	confirmbooking "booking-system/internal/booking/usecase/confirm_booking"
 	lockseat "booking-system/internal/booking/usecase/lock_seat"
 	"booking-system/pkg/shared/response"
 
@@ -14,12 +15,17 @@ import (
 )
 
 type BookingHandler struct {
-	lockSeatUC *lockseat.LockSeatUsecase
+	lockSeatUC       *lockseat.LockSeatUsecase
+	confirmBookingUC *confirmbooking.ConfirmBookingUsecase
 }
 
-func NewBookingHandler(lockSeatUC *lockseat.LockSeatUsecase) *BookingHandler {
+func NewBookingHandler(
+	lockSeatUC *lockseat.LockSeatUsecase,
+	confirmBookingUC *confirmbooking.ConfirmBookingUsecase,
+) *BookingHandler {
 	return &BookingHandler{
-		lockSeatUC: lockSeatUC,
+		lockSeatUC:       lockSeatUC,
+		confirmBookingUC: confirmBookingUC,
 	}
 }
 
@@ -52,4 +58,37 @@ func (h *BookingHandler) LockSeat(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "lock seat sucessfully", resp)
+}
+
+func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
+	var res dto.ConfirmBookingRequest
+	if err := c.ShouldBindJSON(&res); err != nil {
+		c.Error(httpErrors.BadRequest("invalid request body"))
+		return
+	}
+
+	resp, err := h.confirmBookingUC.Execute(c.Request.Context(), res)
+	if err != nil {
+		var appError *httpErrors.AppError
+		switch {
+		case errors.Is(err, confirmbooking.ErrTempUserRequired):
+			appError = httpErrors.BadRequest(err.Error())
+		case errors.Is(err, confirmbooking.ErrPhoneRequired), errors.Is(err, confirmbooking.ErrNoSeatSelected):
+			appError = httpErrors.BadRequest(err.Error())
+		case errors.Is(err, confirmbooking.ErrBusNotFound):
+			appError = httpErrors.NotFound(err.Error())
+		case errors.Is(err, confirmbooking.ErrSeatNotFound):
+			appError = httpErrors.Conflict(err.Error())
+		case errors.Is(err, confirmbooking.ErrSeatAlreadyBooked):
+			appError = httpErrors.Conflict(err.Error())
+		case errors.Is(err, confirmbooking.ErrLockExpired):
+			appError = httpErrors.Conflict(err.Error())
+		default:
+			appError = httpErrors.InternalServerError(err.Error())
+		}
+		c.Error(appError)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "confirm booking sucessfully", resp)
 }

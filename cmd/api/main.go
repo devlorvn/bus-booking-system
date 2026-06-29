@@ -5,6 +5,8 @@ import (
 	httpBooking "booking-system/internal/booking/delivery/http"
 	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/delivery/ws"
+	bookingService "booking-system/internal/booking/service"
+	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
@@ -67,6 +69,25 @@ func main() {
 		eventPublisher,
 	)
 
+	bookingRepo := postgresRepository.NewBookingRepository(db)
+	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
+	userRepo := postgresRepository.NewUserRepository(db)
+
+	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
+	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
+	pricingService := bookingService.NewPricingService()
+
+	confirmBookingUsecase := confirmbookingUC.New(
+		bookingRepoAdapter,
+		bookingSeatRepo,
+		userPortAdapter,
+		seatLockRepo,
+		busProvider,
+		pricingService,
+		txManager,
+		eventPublisher,
+	)
+
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
 	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, seatLockRepo, txManager)
 	busHandler := httpBusHandler.NewBusHandler(busUsecase)
@@ -80,7 +101,7 @@ func main() {
 	api.Use(middleware.ErrorHandler())
 
 	httpBusDelivery.RegiserBusRouter(api, busHandler)
-	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase))
+	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, confirmBookingUsecase))
 
 	r.GET("/ws/buses/:id", h.Handle)
 

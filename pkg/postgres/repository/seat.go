@@ -41,7 +41,7 @@ func (r *SeatRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Sea
 }
 
 func (r *SeatRepository) Update(ctx context.Context, seat *domain.Seat) (*domain.Seat, error) {
-	if err := r.dbFromContext(ctx).Where("id = ?", seat.ID).Updates(map[string]interface{}{
+	if err := r.dbFromContext(ctx).Table("seats").Where("id = ?", seat.ID).Updates(map[string]interface{}{
 		"bus_id":    seat.BusID,
 		"seat_code": seat.SeatCode,
 		"status":    seat.Status,
@@ -57,7 +57,7 @@ func (r *SeatRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *SeatRepository) ListByBusID(ctx context.Context, busID uuid.UUID) ([]*domain.Seat, error) {
 	var seats []*domain.Seat
-	if err := r.dbFromContext(ctx).Where("bus_id = ?", busID).Find(&seats).Error; err != nil {
+	if err := r.dbFromContext(ctx).Where("bus_id = ?", busID).Order("seat_code ASC").Find(&seats).Error; err != nil {
 		return nil, err
 	}
 	return seats, nil
@@ -69,7 +69,7 @@ func (r *SeatRepository) GetByBusAndCodes(
 	codes []string,
 ) ([]*domain.Seat, error) {
 	var seats []*domain.Seat
-	if err := r.dbFromContext(ctx).Where("bus_id = ? AND seat_code IN ?", busID, codes).Find(&seats).Error; err != nil {
+	if err := r.dbFromContext(ctx).Where("bus_id = ? AND seat_code IN ?", busID, codes).Order("seat_code ASC").Find(&seats).Error; err != nil {
 		return nil, err
 	}
 	return seats, nil

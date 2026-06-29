@@ -19,3 +19,8 @@ func (s *pricingService) Calculate(
 ) (float64, error) {
 	return bus.Price * float64(len(seats)), nil
 }
+
+func NewPricingService() PricingService {
+	return &pricingService{}
+}
+

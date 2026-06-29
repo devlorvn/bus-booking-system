@@ -2,14 +2,16 @@ package provider
 
 import (
 	"booking-system/internal/booking/delivery/ws"
-	"booking-system/internal/booking/ports"
+	"context"
+
+	"github.com/google/uuid"
 )
 
 type WSEventPublisher struct {
 	hub *ws.Hub
 }
 
-func NewWSEventPublisher(hub *ws.Hub) ports.EventPublisher {
+func NewWSEventPublisher(hub *ws.Hub) *WSEventPublisher {
 	return &WSEventPublisher{
 		hub: hub,
 	}
@@ -50,3 +52,12 @@ func (p *WSEventPublisher) PublishSeatReleased(
 	p.hub.Broadcast(busID, msg)
 	return nil
 }
+
+func (p *WSEventPublisher) PublishPaymentRequested(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) error {
+	// No-op or log if needed, as this is local websocket and not real payment queue
+	return nil
+}
+

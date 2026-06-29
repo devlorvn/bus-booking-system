@@ -40,7 +40,7 @@ func (r *BookingRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 }
 
 func (r *BookingRepository) Update(ctx context.Context, booking *domain.Booking) (*domain.Booking, error) {
-	if err := r.dbFromContext(ctx).Where("id = ?", booking.ID).Updates(map[string]interface{}{
+	if err := r.dbFromContext(ctx).Table("bookings").Where("id = ?", booking.ID).Updates(map[string]interface{}{
 		"bus_id":         booking.BusID,
 		"user_id":        booking.UserID,
 		"status":         booking.Status,

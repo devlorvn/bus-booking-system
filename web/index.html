@@ -39,17 +39,17 @@
 
       <div class="card">
         <p>
-          Selected Bus:
+          Chuyến xe:
           <span x-text="$store.bus.selectedBus?.route || 'None'"></span>
         </p>
 
         <p>
-          Booking Step:
+          Bước:
           <span x-text="$store.booking.step"></span>
         </p>
 
         <p>
-          Selected Seats:
+          Ghế đã chọn:
           <span x-text="$store.booking.selectedSeats.join(', ') || '-'"></span>
         </p>
       </div>
@@ -157,6 +157,11 @@
               <span class="step-num">2</span>
               <span class="step-text">Chọn ghế ngồi</span>
             </div>
+            <div class="step-line"></div>
+            <div class="step-indicator-item" :class="{ active: step === 3, completed: step > 3 }">
+              <span class="step-num">3</span>
+              <span class="step-text">Xác nhận đặt vé</span>
+            </div>
           </div>
 
           <template x-if="step===1">
@@ -243,10 +248,6 @@
                       <span>Đang chọn</span>
                     </div>
                     <div class="legend-item">
-                      <span class="legend-dot seat-locked"></span>
-                      <span>Đang khóa</span>
-                    </div>
-                    <div class="legend-item">
                       <span class="legend-dot seat-booked"></span>
                       <span>Đã đặt</span>
                     </div>
@@ -281,8 +282,75 @@
                     </div>
                   </div>
 
-                  <button class="checkout-btn" :disabled="selectedSeats.length === 0 || booking" @click="bookSeats()">
+                  <button class="checkout-btn" :disabled="selectedSeats.length === 0 || booking" @click="lockSeats()">
                     <span x-show="!booking">Tiến hành đặt vé</span>
+                    <span x-show="booking">Đang đặt vé...</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="step===3">
+            <div class="confirm-selection-container">
+              <!-- Header with Back Button -->
+              <div class="booking-header">
+                <button class="back-btn" @click="goBackToSeats()">
+                  <span class="back-arrow">←</span> Quay lại chọn ghế
+                </button>
+                <h2 class="booking-title">
+                  Xác nhận thông tin đặt vé
+                </h2>
+              </div>
+
+              <div class="booking-layout-grid">
+                <!-- Left Side: Customer Information Form -->
+                <div class="cabin-card">
+                  <h3 style="margin-bottom: 20px; font-weight: 700; align-self: flex-start;">Thông tin khách hàng</h3>
+                  <div class="form-group">
+                    <label>Họ và tên *</label>
+                    <input type="text" x-model="customerName" placeholder="Ví dụ: Nguyễn Văn A" required />
+                  </div>
+                  <div class="form-group">
+                    <label>Số điện thoại *</label>
+                    <input type="tel" x-model="customerPhone" placeholder="Ví dụ: 0912345678" required />
+                  </div>
+                  <div class="form-group">
+                    <label>Email (Tùy chọn)</label>
+                    <input type="email" x-model="customerEmail" placeholder="Ví dụ: name@example.com" />
+                  </div>
+                </div>
+
+                <!-- Right Side: Booking Summary Card -->
+                <div class="summary-card">
+                  <h3>Chi tiết vé đặt</h3>
+
+                  <div class="summary-details">
+                    <div class="summary-row">
+                      <span class="summary-label">Tuyến đường:</span>
+                      <span class="summary-value" x-text="selectedBus.route"></span>
+                    </div>
+                    <div class="summary-row">
+                      <span class="summary-label">Khởi hành:</span>
+                      <span class="summary-value" x-text="selectedBus.departureTime"></span>
+                    </div>
+                    <div class="summary-row">
+                      <span class="summary-label">Giá vé / ghế:</span>
+                      <span class="summary-value" x-text="formatMoney(selectedBus.price)"></span>
+                    </div>
+                    <hr class="summary-divider" />
+                    <div class="summary-row">
+                      <span class="summary-label">Ghế đã chọn:</span>
+                      <span class="summary-value highlight-seats" x-text="selectedSeats.join(', ') || '-'"></span>
+                    </div>
+                    <div class="summary-row total">
+                      <span class="summary-label">Tổng cộng:</span>
+                      <span class="summary-value total-price" x-text="formatMoney(totalAmount())"></span>
+                    </div>
+                  </div>
+
+                  <button class="checkout-btn" :disabled="!customerName || !customerPhone || booking" @click="confirmBooking()">
+                    <span x-show="!booking">Xác nhận đặt vé</span>
                     <span x-show="booking">Đang đặt vé...</span>
                   </button>
                 </div>

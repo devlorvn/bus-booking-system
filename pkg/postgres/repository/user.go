@@ -40,7 +40,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Use
 }
 
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) (*domain.User, error) {
-	if err := r.dbFromContext(ctx).Where("id = ?", user.ID).Updates(map[string]interface{}{
+	if err := r.dbFromContext(ctx).Table("users").Where("id = ?", user.ID).Updates(map[string]interface{}{
 		"name":         user.Name,
 		"email":        user.Email,
 		"phone_number": user.PhoneNumber,
@@ -61,3 +61,15 @@ func (r *UserRepository) List(ctx context.Context) ([]*domain.User, error) {
 	}
 	return users, nil
 }
+
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
+	var user domain.User
+	if err := r.dbFromContext(ctx).First(&user, "phone_number = ?", phone).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+

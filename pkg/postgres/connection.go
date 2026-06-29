@@ -22,6 +22,7 @@ func NewPostgres(cfg *configs.Database) (*gorm.DB, error) {
 
 func AutoMigrate(db *gorm.DB) error {
 	err := db.AutoMigrate(
+		&model.User{},
 		&model.Bus{},
 		&model.Seat{},
 		&model.Booking{},

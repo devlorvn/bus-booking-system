@@ -76,6 +76,29 @@ func (r *LockSeatRepository) AcquireSeatLocks(
 	return nil
 }
 
+func (r *LockSeatRepository) ValidateLockOwner(
+	ctx context.Context,
+	busID uuid.UUID,
+	seatCodes []string,
+	tempUserID string,
+) error {
+	for _, seatCode := range seatCodes {
+		key := buildSeatLockKey(busID, seatCode)
+		owner, err := r.client.Get(ctx, key).Result()
+		if err != nil {
+			if err == goredis.Nil {
+				return errors.New("LOCK_EXPIRED")
+			}
+			return err
+		}
+		if owner != tempUserID {
+			return errors.New("LOCK_OWNER_MISMATCH")
+		}
+	}
+	return nil
+}
+
+
 var releaseLockScript = goredis.NewScript(`
 	if redis.call("get", KEYS[1]) == ARGV[1] then
 		return redis.call("del", KEYS[1])
