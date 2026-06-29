@@ -1,14 +1,16 @@
 package event
 
+import "github.com/google/uuid"
+
 type BookingCreatedEvent struct {
-	BookingID string `json:"booking_id"`
+	BookingID uuid.UUID `json:"booking_id"`
 }
 
 type PaymentSuccessEvent struct {
-	BookingID string `json:"booking_id"`
+	BookingID uuid.UUID `json:"booking_id"`
 }
 
 type PaymentFailedEvent struct {
-	BookingID string `json:"booking_id"`
-	Reason    string `json:"reason"`
+	BookingID uuid.UUID `json:"booking_id"`
+	Reason    string    `json:"reason"`
 }

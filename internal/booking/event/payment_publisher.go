@@ -18,7 +18,7 @@ func NewPaymentPublisher(bus *PaymentEventBus) *PaymentPublisher {
 
 func (p *PaymentPublisher) PublishBookingCreated(ctx context.Context, bookingID uuid.UUID) error {
 	event := BookingCreatedEvent{
-		BookingID: bookingID.String(),
+		BookingID: bookingID,
 	}
 	p.bus.BookingCreated <- event
 	return nil

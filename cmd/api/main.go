@@ -45,9 +45,10 @@ func main() {
 	redisClient := redis.NewClient(&cfg.Redis)
 
 	paymentBus := event.NewPaymentEventBus()
+	paymentProcessor := bookingService.NewFakePaymentProcessor()
 
 	paymentPublisher := event.NewPaymentPublisher(paymentBus)
-	paymentWorker := worker.NewPaymentWorker(paymentBus)
+	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor)
 
 	go func() {
 		if err := paymentWorker.Start(ctx); err != nil {
