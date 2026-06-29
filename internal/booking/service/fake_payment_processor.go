@@ -1,6 +1,7 @@
 package service
 
 import (
+	"booking-system/internal/booking/event"
 	"context"
 	"log"
 	"math/rand"
@@ -10,10 +11,13 @@ import (
 )
 
 type FakePaymentProcessor struct {
+	bus *event.PaymentEventBus
 }
 
-func NewFakePaymentProcessor() *FakePaymentProcessor {
-	return &FakePaymentProcessor{}
+func NewFakePaymentProcessor(bus *event.PaymentEventBus) *FakePaymentProcessor {
+	return &FakePaymentProcessor{
+		bus: bus,
+	}
 }
 
 func (f *FakePaymentProcessor) Process(ctx context.Context, bookingID uuid.UUID) error {
@@ -29,9 +33,13 @@ func (f *FakePaymentProcessor) Process(ctx context.Context, bookingID uuid.UUID)
 	success := rand.Intn(100) >= 20 // 80% success
 
 	if success {
-		log.Println("PAYMENT_SUCCESS:", bookingID)
+		f.bus.PaymentSuccess <- event.PaymentSuccessEvent{
+			BookingID: bookingID,
+		}
 	} else {
-		log.Println("PAYMENT_FAILED:", bookingID)
+		f.bus.PaymentFailed <- event.PaymentFailedEvent{
+			BookingID: bookingID,
+		}
 	}
 
 	return nil

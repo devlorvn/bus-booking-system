@@ -8,6 +8,7 @@ import (
 	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
+	handlepayment "booking-system/internal/booking/usecase/handle_payment"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
@@ -44,18 +45,6 @@ func main() {
 
 	redisClient := redis.NewClient(&cfg.Redis)
 
-	paymentBus := event.NewPaymentEventBus()
-	paymentProcessor := bookingService.NewFakePaymentProcessor()
-
-	paymentPublisher := event.NewPaymentPublisher(paymentBus)
-	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor)
-
-	go func() {
-		if err := paymentWorker.Start(ctx); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
 	// Web socket
 	hub := ws.NewHub()
 	go hub.Run(ctx)
@@ -88,7 +77,20 @@ func main() {
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
+	seatPortAdapter := &provider.SeatPortAdapter{Repo: seatRepo}
 	pricingService := bookingService.NewPricingService()
+	paymentBus := event.NewPaymentEventBus()
+	paymentProcessor := bookingService.NewFakePaymentProcessor(paymentBus)
+
+	handlePaymentUsecase := handlepayment.New(bookingRepoAdapter, seatPortAdapter, txManager)
+	paymentPublisher := event.NewPaymentPublisher(paymentBus)
+	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor, handlePaymentUsecase)
+
+	go func() {
+		if err := paymentWorker.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	confirmBookingUsecase := confirmbookingUC.New(
 		bookingRepoAdapter,

@@ -5,6 +5,8 @@ import (
 	userDomain "booking-system/internal/user/domain"
 	postgresRepo "booking-system/pkg/postgres/repository"
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type BookingRepoAdapter struct {
@@ -13,6 +15,15 @@ type BookingRepoAdapter struct {
 
 func (a *BookingRepoAdapter) Create(ctx context.Context, booking *bookingDomain.Booking) error {
 	_, err := a.Repo.Create(ctx, booking)
+	return err
+}
+
+func (a *BookingRepoAdapter) GetByID(ctx context.Context, id uuid.UUID) (*bookingDomain.Booking, error) {
+	return a.Repo.GetByID(ctx, id)
+}
+
+func (a *BookingRepoAdapter) Update(ctx context.Context, booking *bookingDomain.Booking) error {
+	_, err := a.Repo.Update(ctx, booking)
 	return err
 }
 
@@ -32,4 +43,12 @@ func (a *UserPortAdapter) Create(ctx context.Context, user *userDomain.User) err
 func (a *UserPortAdapter) Update(ctx context.Context, user *userDomain.User) error {
 	_, err := a.Repo.Update(ctx, user)
 	return err
+}
+
+type SeatPortAdapter struct {
+	Repo *postgresRepo.SeatRepository
+}
+
+func (a *SeatPortAdapter) MarkBookedByBookingID(ctx context.Context, bookingID uuid.UUID) error {
+	return a.Repo.MarkBookedByBookingID(ctx, bookingID)
 }

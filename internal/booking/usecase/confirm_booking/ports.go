@@ -9,13 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type BookingRepository interface {
-	Create(
-		ctx context.Context,
-		booking *bookingDomain.Booking,
-	) error
-}
-
 type BookingSeatRepository interface {
 	BulkCreate(
 		ctx context.Context,

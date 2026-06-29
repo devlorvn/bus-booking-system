@@ -21,7 +21,7 @@ const (
 )
 
 type ConfirmBookingUsecase struct {
-	bookingRepo     BookingRepository
+	bookingRepo     ports.BookingRepository
 	bookingSeatRepo BookingSeatRepository
 	userPort        UserPort
 	lockPort        SeatLockPort
@@ -32,7 +32,7 @@ type ConfirmBookingUsecase struct {
 }
 
 func New(
-	bookingRepo BookingRepository,
+	bookingRepo ports.BookingRepository,
 	bookingSeatRepo BookingSeatRepository,
 	userPort UserPort,
 	lockPort SeatLockPort,

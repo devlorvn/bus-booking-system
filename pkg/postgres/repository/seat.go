@@ -91,3 +91,16 @@ func (r *SeatRepository) BookSeats(
 	}
 	return nil
 }
+
+func (r *SeatRepository) MarkBookedByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) error {
+	result := r.dbFromContext(ctx).Model(&domain.Seat{}).
+		Where("booking_id = ? AND status = ?", bookingID, "PENDING_PAYMENT").
+		Update("status", "BOOKED")
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
