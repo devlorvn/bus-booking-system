@@ -23,3 +23,17 @@ type BookingRepository interface {
 		booking *bookingDomain.Booking,
 	) error
 }
+
+type BookingLockPort interface {
+	Create(
+		ctx context.Context,
+		bookingID uuid.UUID,
+		seatCodes []string,
+	) error
+
+	Release(
+		ctx context.Context,
+		bookingID uuid.UUID,
+		seatCodes []string,
+	) error
+}

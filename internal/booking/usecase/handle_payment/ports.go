@@ -3,6 +3,8 @@ package handlepayment
 import (
 	"context"
 
+	busDomain "booking-system/internal/bus/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -15,4 +17,6 @@ type SeatRepository interface {
 		ctx context.Context,
 		bookingID uuid.UUID,
 	) error
+	GetSeatByBookingID(ctx context.Context, bookingID uuid.UUID) ([]*busDomain.Seat, error)
+	ReleaseSeatsByBookingID(ctx context.Context, bookingID uuid.UUID) error
 }

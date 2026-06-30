@@ -2,6 +2,7 @@ package provider
 
 import (
 	bookingDomain "booking-system/internal/booking/domain"
+	busDomain "booking-system/internal/bus/domain"
 	userDomain "booking-system/internal/user/domain"
 	postgresRepo "booking-system/pkg/postgres/repository"
 	"context"
@@ -51,6 +52,14 @@ type SeatPortAdapter struct {
 
 func (a *SeatPortAdapter) MarkBookedByBookingID(ctx context.Context, bookingID uuid.UUID) error {
 	return a.Repo.MarkBookedByBookingID(ctx, bookingID)
+}
+
+func (a *SeatPortAdapter) GetSeatByBookingID(ctx context.Context, bookingID uuid.UUID) ([]*busDomain.Seat, error) {
+	return a.Repo.GetSeatByBookingID(ctx, bookingID)
+}
+
+func (a *SeatPortAdapter) ReleaseSeatsByBookingID(ctx context.Context, bookingID uuid.UUID) error {
+	return a.Repo.ReleaseSeatsByBookingID(ctx, bookingID)
 }
 
 type BusPortAdapter struct {

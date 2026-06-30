@@ -24,32 +24,35 @@ type ConfirmBookingUsecase struct {
 	bookingRepo     ports.BookingRepository
 	bookingSeatRepo BookingSeatRepository
 	userPort        UserPort
-	lockPort        SeatLockPort
+	seatLockPort    SeatLockPort
 	busProvider     ports.BusProvider
 	pricingService  service.PricingService
 	tx              shared.Transaction
 	publisher       PaymentEventPublisher
+	bookingLockPort ports.BookingLockPort
 }
 
 func New(
 	bookingRepo ports.BookingRepository,
 	bookingSeatRepo BookingSeatRepository,
 	userPort UserPort,
-	lockPort SeatLockPort,
+	seatLockPort SeatLockPort,
 	busProvider ports.BusProvider,
 	pricingService service.PricingService,
 	tx shared.Transaction,
+	bookingLockPort ports.BookingLockPort,
 	publisher PaymentEventPublisher,
 ) *ConfirmBookingUsecase {
 	return &ConfirmBookingUsecase{
 		bookingRepo:     bookingRepo,
 		bookingSeatRepo: bookingSeatRepo,
 		userPort:        userPort,
-		lockPort:        lockPort,
+		seatLockPort:    seatLockPort,
 		pricingService:  pricingService,
 		tx:              tx,
 		publisher:       publisher,
 		busProvider:     busProvider,
+		bookingLockPort: bookingLockPort,
 	}
 }
 
@@ -69,7 +72,7 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, ErrNoSeatSelected
 	}
 
-	err := u.lockPort.ValidateLockOwner(
+	err := u.seatLockPort.ValidateLockOwner(
 		ctx,
 		req.BusID,
 		req.SeatCodes,
@@ -192,12 +195,14 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, err
 	}
 
-	_ = u.lockPort.ReleaseSeatLocks(
+	u.seatLockPort.ReleaseSeatLocks(
 		ctx,
 		req.BusID,
 		req.SeatCodes,
 		req.TempUserID,
 	)
+
+	u.bookingLockPort.Create(ctx, bookingID, req.SeatCodes)
 
 	err = u.publisher.PublishBookingCreated(
 		ctx,

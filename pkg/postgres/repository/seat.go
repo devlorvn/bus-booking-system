@@ -104,3 +104,27 @@ func (r *SeatRepository) MarkBookedByBookingID(
 	}
 	return nil
 }
+
+func (r *SeatRepository) GetSeatByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) ([]*domain.Seat, error) {
+	var seats []*domain.Seat
+	err := r.dbFromContext(ctx).
+		Joins("JOIN booking_seats ON booking_seats.seat_id = seats.id").
+		Where("booking_seats.booking_id = ?", bookingID).
+		Find(&seats).Error
+	if err != nil {
+		return nil, err
+	}
+	return seats, nil
+}
+
+func (r *SeatRepository) ReleaseSeatsByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) error {
+	return r.dbFromContext(ctx).Model(&domain.Seat{}).
+		Where("id IN (SELECT seat_id FROM booking_seats WHERE booking_id = ?)", bookingID).
+		Update("status", "AVAILABLE").Error
+}

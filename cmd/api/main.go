@@ -8,6 +8,7 @@ import (
 	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
+	expirebookingUC "booking-system/internal/booking/usecase/expire_booking"
 	handlepayment "booking-system/internal/booking/usecase/handle_payment"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
@@ -52,18 +53,13 @@ func main() {
 	h := ws.NewHandler(hub)
 
 	eventPublisher := provider.NewWSEventPublisher(hub)
-	lockExpirationWorker := worker.NewLockExpirationWorker(redisClient, eventPublisher)
-	go func() {
-		if err := lockExpirationWorker.Start(ctx); err != nil {
-			log.Fatal(err)
-		}
-	}()
 
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 
 	busProvider := provider.NewBusProvider(busRepo, seatRepo)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
+	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 
 	lockSeatUsecase := lockseatUC.New(
 		busProvider,
@@ -83,7 +79,14 @@ func main() {
 	paymentBus := event.NewPaymentEventBus()
 	paymentProcessor := bookingService.NewFakePaymentProcessor(paymentBus)
 
-	handlePaymentUsecase := handlepayment.New(bookingRepoAdapter, seatPortAdapter, busPortAdapter, txManager)
+	handlePaymentUsecase := handlepayment.New(
+		bookingRepoAdapter,
+		seatPortAdapter,
+		busPortAdapter,
+		bookingLockRepo,
+		eventPublisher,
+		txManager,
+	)
 	paymentPublisher := event.NewPaymentPublisher(paymentBus)
 	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor, handlePaymentUsecase)
 
@@ -101,8 +104,22 @@ func main() {
 		busProvider,
 		pricingService,
 		txManager,
+		bookingLockRepo,
 		paymentPublisher,
 	)
+
+	expireBookingUsecase := expirebookingUC.New(
+		bookingRepoAdapter,
+		seatPortAdapter,
+		txManager,
+	)
+
+	lockExpirationWorker := worker.NewLockExpirationWorker(redisClient, eventPublisher, expireBookingUsecase)
+	go func() {
+		if err := lockExpirationWorker.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
 	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, seatLockRepo, txManager)
