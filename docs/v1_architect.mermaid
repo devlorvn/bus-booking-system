@@ -1,0 +1,39 @@
+graph TD
+    subgraph Client Layer
+        Web["Static Frontend (HTML + Alpine JS)"]
+    end
+
+    subgraph API & Routing Layer
+        Gin["Gin Web Server (Router)"]
+        WS["WebSocket Hub / Rooms"]
+    end
+
+    subgraph Business Logic (Usecases)
+        LS["LockSeat Usecase"]
+        CB["ConfirmBooking Usecase"]
+        EB["ExpireBooking Usecase"]
+        HP["HandlePayment Usecase"]
+    end
+
+    subgraph Storage & Infrastructure
+        Redis["Redis (Seat Locks, Booking Locks, Pub/Sub)"]
+        Postgres["PostgreSQL (GORM)"]
+        Workers["Background Workers (Payment & Lock Expiration)"]
+    end
+
+    Web <-->|REST / WebSockets| Gin
+    Gin --> WS
+    Gin --> LS
+    Gin --> CB
+    
+    LS --> Redis
+    CB --> Postgres
+    CB --> Redis
+    
+    Workers -->|Keyspace Notifications| Redis
+    Workers --> EB
+    Workers --> HP
+    
+    EB --> Postgres
+    HP --> Postgres
+    HP --> Redis
