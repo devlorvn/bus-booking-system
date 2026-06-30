@@ -78,11 +78,12 @@ func main() {
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
 	seatPortAdapter := &provider.SeatPortAdapter{Repo: seatRepo}
+	busPortAdapter := &provider.BusPortAdapter{Repo: busRepo}
 	pricingService := bookingService.NewPricingService()
 	paymentBus := event.NewPaymentEventBus()
 	paymentProcessor := bookingService.NewFakePaymentProcessor(paymentBus)
 
-	handlePaymentUsecase := handlepayment.New(bookingRepoAdapter, seatPortAdapter, txManager)
+	handlePaymentUsecase := handlepayment.New(bookingRepoAdapter, seatPortAdapter, busPortAdapter, txManager)
 	paymentPublisher := event.NewPaymentPublisher(paymentBus)
 	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor, handlePaymentUsecase)
 

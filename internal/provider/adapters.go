@@ -52,3 +52,11 @@ type SeatPortAdapter struct {
 func (a *SeatPortAdapter) MarkBookedByBookingID(ctx context.Context, bookingID uuid.UUID) error {
 	return a.Repo.MarkBookedByBookingID(ctx, bookingID)
 }
+
+type BusPortAdapter struct {
+	Repo *postgresRepo.BusRepository
+}
+
+func (a *BusPortAdapter) DecrementAvailableSeats(ctx context.Context, busID uuid.UUID, count int) error {
+	return a.Repo.DecrementAvailableSeats(ctx, busID, count)
+}

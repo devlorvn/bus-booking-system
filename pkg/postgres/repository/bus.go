@@ -4,6 +4,7 @@ import (
 	"booking-system/internal/bus/domain"
 	"booking-system/pkg/database"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -66,4 +67,17 @@ func (r *BusRepository) List(ctx context.Context) ([]*domain.Bus, error) {
 		return nil, err
 	}
 	return buses, nil
+}
+
+func (r *BusRepository) DecrementAvailableSeats(ctx context.Context, busID uuid.UUID, count int) error {
+	result := r.dbFromContext(ctx).Model(&domain.Bus{}).
+		Where("id = ? AND available_seats >= ?", busID, count).
+		Update("available_seats", gorm.Expr("available_seats - ?", count))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("NOT_ENOUGH_SEATS_AVAILABLE")
+	}
+	return nil
 }

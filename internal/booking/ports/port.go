@@ -23,10 +23,3 @@ type BookingRepository interface {
 		booking *bookingDomain.Booking,
 	) error
 }
-
-type SeatRepository interface {
-	MarkBookedByBookingID(
-		ctx context.Context,
-		bookingID uuid.UUID,
-	) error
-}

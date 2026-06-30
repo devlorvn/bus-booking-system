@@ -10,18 +10,21 @@ import (
 
 type HandlePaymentSuccessUsecase struct {
 	bookingRepo ports.BookingRepository
-	seatRepo    ports.SeatRepository
+	seatRepo    SeatRepository
+	busRepo     BusRepository
 	tx          shared.Transaction
 }
 
 func New(
 	bookingRepo ports.BookingRepository,
-	seatRepo ports.SeatRepository,
+	seatRepo SeatRepository,
+	busRepo BusRepository,
 	tx shared.Transaction,
 ) *HandlePaymentSuccessUsecase {
 	return &HandlePaymentSuccessUsecase{
 		bookingRepo: bookingRepo,
 		seatRepo:    seatRepo,
+		busRepo:     busRepo,
 		tx:          tx,
 	}
 }
@@ -47,6 +50,10 @@ func (u *HandlePaymentSuccessUsecase) Success(
 			return err
 		}
 		if err := u.seatRepo.MarkBookedByBookingID(txCtx, bookingID); err != nil {
+			return err
+		}
+
+		if err := u.busRepo.DecrementAvailableSeats(txCtx, booking.BusID, booking.TotalSeats); err != nil {
 			return err
 		}
 		return nil
