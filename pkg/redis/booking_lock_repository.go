@@ -39,10 +39,30 @@ func (r *LockBookingRepository) Release(ctx context.Context, bookingID uuid.UUID
 	).Err()
 }
 
+func (r *LockBookingRepository) AcquireConfirmLock(ctx context.Context, tempUserID string) error {
+	return r.client.SetNX(
+		ctx,
+		buildConfirmLockKey(tempUserID),
+		tempUserID,
+		bookingLockTTL,
+	).Err()
+}
+
+func (r *LockBookingRepository) ReleaseConfirmLock(ctx context.Context, tempUserID string) error {
+	return r.client.Del(
+		ctx,
+		buildConfirmLockKey(tempUserID),
+	).Err()
+}
+
 func buildBookingLockKey(bookingID uuid.UUID, seatCodes []string) string {
 	sortedSeatCodes := make([]string, len(seatCodes))
 	copy(sortedSeatCodes, seatCodes)
 	sort.Strings(sortedSeatCodes)
 	seatCodesStr := strings.Join(sortedSeatCodes, ",")
 	return fmt.Sprintf("booking_lock:%s:%s", bookingID.String(), seatCodesStr)
+}
+
+func buildConfirmLockKey(tempUserID string) string {
+	return fmt.Sprintf("confirm_lock:%s", tempUserID)
 }

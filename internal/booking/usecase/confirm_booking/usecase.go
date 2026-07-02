@@ -60,6 +60,17 @@ func (u *ConfirmBookingUsecase) Execute(
 	ctx context.Context,
 	req dto.ConfirmBookingRequest,
 ) (*dto.ConfirmBookingResponse, error) {
+
+	err := u.bookingLockPort.AcquireConfirmLock(ctx, req.TempUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer u.bookingLockPort.ReleaseConfirmLock(
+		ctx,
+		req.TempUserID,
+	)
+
 	if req.TempUserID == "" {
 		return nil, ErrTempUserRequired
 	}
@@ -72,7 +83,7 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, ErrNoSeatSelected
 	}
 
-	err := u.seatLockPort.ValidateLockOwner(
+	err = u.seatLockPort.ValidateLockOwner(
 		ctx,
 		req.BusID,
 		req.SeatCodes,

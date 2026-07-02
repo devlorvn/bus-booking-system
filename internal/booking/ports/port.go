@@ -36,4 +36,14 @@ type BookingLockPort interface {
 		bookingID uuid.UUID,
 		seatCodes []string,
 	) error
+
+	AcquireConfirmLock(
+		ctx context.Context,
+		tempUserID string,
+	) error
+
+	ReleaseConfirmLock(
+		ctx context.Context,
+		tempUserID string,
+	) error
 }
