@@ -27,6 +27,7 @@ func (c *Client) ReadPump() {
 	defer func() {
 		select {
 		case c.Hub.unregister <- c:
+		case <-c.Hub.done:
 		case <-time.After(100 * time.Millisecond):
 		}
 		c.Conn.Close()

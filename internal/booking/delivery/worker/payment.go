@@ -7,6 +7,7 @@ import (
 	"booking-system/pkg/shared/helpers"
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,13 +30,17 @@ func NewPaymentWorker(bus *event.PaymentEventBus, processor ports.PaymentProcess
 func (w *PaymentWorker) Start(ctx context.Context) error {
 	log.Println("Payment worker started")
 
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case bookingEvent := <-w.bus.BookingCreated:
-
+			wg.Add(1)
 			go func(bookingID uuid.UUID) {
+				defer wg.Done()
 				err := helpers.Retry(
 					ctx,
 					3,
@@ -48,11 +53,15 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 				)
 				if err != nil {
 					log.Println("payment permanently failed:", err)
-					w.bus.DLQ <- event.DeadLetterEvent{
+					select {
+					case w.bus.DLQ <- event.DeadLetterEvent{
 						EventType: "booking_created",
 						EntityId:  bookingID.String(),
 						Error:     err.Error(),
 						FailedAt:  time.Now(),
+					}:
+					case <-ctx.Done():
+						log.Println("payment DLQ write cancelled due to context cancellation")
 					}
 				}
 			}(bookingEvent.BookingID)

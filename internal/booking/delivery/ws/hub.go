@@ -8,6 +8,7 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan RoomBroadcast
+	done       chan struct{}
 }
 
 func NewHub() *Hub {
@@ -16,13 +17,16 @@ func NewHub() *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan RoomBroadcast),
+		done:       make(chan struct{}),
 	}
 }
 
 func (h *Hub) Run(ctx context.Context) {
+	defer close(h.done)
 	for {
 		select {
 		case <-ctx.Done():
+			h.cleanup()
 			return
 		case client := <-h.register:
 			h.handleRegister(client)
@@ -34,6 +38,16 @@ func (h *Hub) Run(ctx context.Context) {
 			h.handleBroadcast(msg)
 		}
 	}
+}
+
+func (h *Hub) cleanup() {
+	for _, room := range h.rooms {
+		for client := range room {
+			close(client.Send)
+			client.Conn.Close()
+		}
+	}
+	h.rooms = make(map[string]map[*Client]bool)
 }
 
 func (h *Hub) handleRegister(client *Client) {
@@ -76,8 +90,12 @@ func (h *Hub) handleBroadcast(msg RoomBroadcast) {
 }
 
 func (h *Hub) Broadcast(busID string, msg BroadcastMessage) {
-	h.broadcast <- RoomBroadcast{
+	select {
+	case <-h.done:
+		return
+	case h.broadcast <- RoomBroadcast{
 		BusID:   busID,
 		Message: msg,
+	}:
 	}
 }

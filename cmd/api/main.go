@@ -22,14 +22,17 @@ import (
 	"booking-system/pkg/shared/middleware"
 	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
 	cfg := configs.LoadConfig()
 	db, err := postgres.NewPostgres(&cfg.Database)
 	if err != nil {
@@ -46,9 +49,20 @@ func main() {
 
 	redisClient := redis.NewClient(&cfg.Redis)
 
-	// Web socket
+	// Web socket hub
 	hub := ws.NewHub()
-	go hub.Run(ctx)
+
+	// Create worker context
+	workerCtx, cancelWorkers := context.WithCancel(context.Background())
+	defer cancelWorkers()
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		hub.Run(workerCtx)
+	}()
 
 	h := ws.NewHandler(hub)
 
@@ -90,9 +104,21 @@ func main() {
 	paymentPublisher := event.NewPaymentPublisher(paymentBus)
 	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor, handlePaymentUsecase)
 
+	wg.Add(1)
 	go func() {
-		if err := paymentWorker.Start(ctx); err != nil {
-			log.Fatal(err)
+		defer wg.Done()
+		if err := paymentWorker.Start(workerCtx); err != nil && err != context.Canceled {
+			log.Printf("Payment worker stopped with error: %v", err)
+		}
+	}()
+
+	// Start DLQWorker as well to handle failed payment tasks and prevent blocking on DLQ channel
+	dlqWorker := worker.NewDLQWorker(paymentBus)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := dlqWorker.Start(workerCtx); err != nil && err != context.Canceled {
+			log.Printf("DLQ worker stopped with error: %v", err)
 		}
 	}()
 
@@ -115,9 +141,11 @@ func main() {
 	)
 
 	lockExpirationWorker := worker.NewLockExpirationWorker(redisClient, eventPublisher, expireBookingUsecase)
+	wg.Add(1)
 	go func() {
-		if err := lockExpirationWorker.Start(ctx); err != nil {
-			log.Fatal(err)
+		defer wg.Done()
+		if err := lockExpirationWorker.Start(workerCtx); err != nil && err != context.Canceled {
+			log.Printf("Lock expiration worker stopped with error: %v", err)
 		}
 	}()
 
@@ -138,5 +166,66 @@ func main() {
 
 	r.GET("/ws/buses/:id", h.Handle)
 
-	r.Run(":" + cfg.Port)
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: r,
+	}
+
+	go func() {
+		log.Printf("Starting server on port %s", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// Wait for termination signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server gracefully...")
+
+	// 1. Shutdown HTTP server first, allowing 5 seconds to finish active requests
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server Shutdown failed: %v", err)
+	} else {
+		log.Println("HTTP server shut down successfully")
+	}
+
+	// 2. Stop workers
+	cancelWorkers()
+
+	// Wait for all background workers to stop (with a timeout of 5 seconds)
+	workersDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(workersDone)
+	}()
+
+	select {
+	case <-workersDone:
+		log.Println("All background workers stopped successfully")
+	case <-time.After(5 * time.Second):
+		log.Println("Timeout waiting for background workers to stop")
+	}
+
+	// 3. Close database and Redis connections
+	sqlDB, err := db.DB()
+	if err == nil {
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("Error closing DB connection: %v", err)
+		} else {
+			log.Println("DB connection closed successfully")
+		}
+	}
+
+	if err := redisClient.Close(); err != nil {
+		log.Printf("Error closing Redis client: %v", err)
+	} else {
+		log.Println("Redis client closed successfully")
+	}
+
+	log.Println("Server exiting")
 }
