@@ -159,6 +159,8 @@ func main() {
 
 	r.Static("/ui", "./web")
 
+	api.Use(middleware.RequestIdMiddleware())
+
 	api.Use(middleware.ErrorHandler())
 
 	httpBusDelivery.RegiserBusRouter(api, busHandler)
