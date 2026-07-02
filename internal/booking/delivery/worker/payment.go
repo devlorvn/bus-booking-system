@@ -7,6 +7,7 @@ import (
 	"booking-system/pkg/shared/helpers"
 	"context"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -33,6 +34,7 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case bookingEvent := <-w.bus.BookingCreated:
+
 			go func(bookingID uuid.UUID) {
 				err := helpers.Retry(
 					ctx,
@@ -46,6 +48,12 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 				)
 				if err != nil {
 					log.Println("payment permanently failed:", err)
+					w.bus.DLQ <- event.DeadLetterEvent{
+						EventType: "booking_created",
+						EntityId:  bookingID.String(),
+						Error:     err.Error(),
+						FailedAt:  time.Now(),
+					}
 				}
 			}(bookingEvent.BookingID)
 		case event := <-w.bus.PaymentSuccess:

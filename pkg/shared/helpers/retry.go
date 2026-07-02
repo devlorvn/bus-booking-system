@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-const (
-	maxRetries = 5
-	backoff    = 2 * time.Second
-)
-
 func Retry(
 	ctx context.Context,
 	maxAttemts int,
@@ -17,7 +12,7 @@ func Retry(
 ) error {
 	var err error
 
-	delay := backoff
+	delay := 2 * time.Second
 
 	for attempt := 0; attempt < maxAttemts; attempt++ {
 		err = fn()
