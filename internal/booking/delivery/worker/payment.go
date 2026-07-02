@@ -4,6 +4,7 @@ import (
 	"booking-system/internal/booking/event"
 	"booking-system/internal/booking/ports"
 	handlepayment "booking-system/internal/booking/usecase/handle_payment"
+	"booking-system/pkg/shared/helpers"
 	"context"
 	"log"
 
@@ -33,9 +34,18 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 			return ctx.Err()
 		case bookingEvent := <-w.bus.BookingCreated:
 			go func(bookingID uuid.UUID) {
-				err := w.processor.Process(ctx, bookingID)
+				err := helpers.Retry(
+					ctx,
+					3,
+					func() error {
+						return w.processor.Process(
+							ctx,
+							bookingID,
+						)
+					},
+				)
 				if err != nil {
-					log.Println("payment error:", err)
+					log.Println("payment permanently failed:", err)
 				}
 			}(bookingEvent.BookingID)
 		case event := <-w.bus.PaymentSuccess:
