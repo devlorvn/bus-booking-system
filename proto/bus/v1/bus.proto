@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package bus.v1;
+
+option go_package = "booking-system/proto/bus/v1;buspb";
+
+service BusService {
+  rpc GetBus(GetBusRequest) 
+    returns (GetBusResponse);
+  rpc GetSeatsByCodes(GetSeatsByCodesRequest) 
+    returns (GetSeatsByCodesResponse);
+}
+
+message GetBusRequest {
+  string bus_id = 1;
+}
+
+message GetBusResponse {
+  Bus bus = 1;
+}
+
+message Bus {
+  string id = 1;
+  string license_plate = 2;
+  string from_location = 3;
+  string to_location = 4;
+  string departure_time = 5;
+  int32 total_seats = 6;
+  int32 available_seats = 7;
+  double price = 8;
+}
+
+message GetSeatsByCodesRequest {
+  string bus_id = 1;
+  repeated string seat_codes = 2;
+}
+
+message GetSeatsByCodesResponse {
+  repeated Seat seats = 1;
+}
+
+message Seat {
+  string id = 1;
+  string bus_id = 2;
+  string seat_code = 3;
+  string status = 4;
+}
+  
