@@ -9,6 +9,8 @@ service BusService {
     returns (GetBusResponse);
   rpc GetSeatsByCodes(GetSeatsByCodesRequest) 
     returns (GetSeatsByCodesResponse);
+  rpc BookSeats(BookSeatsRequest) 
+    returns (BookSeatsResponse);
 }
 
 message GetBusRequest {
@@ -28,7 +30,7 @@ message Bus {
   int32 total_seats = 6;
   int32 available_seats = 7;
   double price = 8;
-}
+} 
 
 message GetSeatsByCodesRequest {
   string bus_id = 1;
@@ -44,5 +46,13 @@ message Seat {
   string bus_id = 2;
   string seat_code = 3;
   string status = 4;
+}
+
+message BookSeatsRequest {
+  string bus_id = 1;
+  repeated string seat_codes = 2;
+}
+message BookSeatsResponse {
+  bool success = 1;
 }
   

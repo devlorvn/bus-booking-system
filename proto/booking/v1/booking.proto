@@ -1,0 +1,25 @@
+syntax = "proto3";
+package booking.v1;
+
+option go_package = "booking-system/proto/booking/v1;bookingpb";
+
+service BookingService {
+  rpc ConfirmBooking(ConfirmBookingRequest) returns (ConfirmBookingResponse);
+}
+
+message ConfirmBookingRequest {
+  string bus_id = 1;
+  repeated string seat_codes = 2;
+  string user_name = 3;
+  string email = 4;
+  string phone = 5;
+  string temp_user_id = 6;
+}
+
+message ConfirmBookingResponse {
+  string booking_id = 1;
+  double total_amount = 2;
+  string status = 3;
+}
+
+

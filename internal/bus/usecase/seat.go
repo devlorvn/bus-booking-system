@@ -50,3 +50,11 @@ func (u *SeatUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 func (u *SeatUsecase) ListByBusID(ctx context.Context, busID uuid.UUID) ([]*domain.Seat, error) {
 	return u.repo.ListByBusID(ctx, busID)
 }
+
+func (u *SeatUsecase) GetByBusAndCodes(ctx context.Context, busID uuid.UUID, codes []string) ([]*domain.Seat, error) {
+	return u.repo.GetByBusAndCodes(ctx, busID, codes)
+}
+
+func (u *SeatUsecase) BookSeats(ctx context.Context, busID uuid.UUID, codes []string) error {
+	return u.repo.BookSeats(ctx, busID, codes)
+}

@@ -19,3 +19,6 @@ build:
 
 seed:
 	go run cmd/seed/main.go
+
+gen-proto:
+	./scripts/gen_proto.sh

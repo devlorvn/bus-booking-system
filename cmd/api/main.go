@@ -20,6 +20,7 @@ import (
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/middleware"
+	buspb "booking-system/proto/bus/v1"
 	"context"
 	"log"
 	"net/http"
@@ -30,6 +31,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -71,7 +74,15 @@ func main() {
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 
-	busProvider := provider.NewBusProvider(busRepo, seatRepo)
+	grpcConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(err)
+	}
+	defer grpcConn.Close()
+
+	busGrpcClient := buspb.NewBusServiceClient(grpcConn)
+
+	busProvider := provider.NewBusProvider(busGrpcClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
 	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 
