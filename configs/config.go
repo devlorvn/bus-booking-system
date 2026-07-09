@@ -3,6 +3,7 @@ package configs
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -20,11 +21,16 @@ type Redis struct {
 	Port string
 }
 
+type Kafka struct {
+	Brokers []string
+}
+
 type Config struct {
 	Port string
 	Mode string
 	Database
 	Redis
+	Kafka
 	BookingLockTTL string
 }
 
@@ -33,6 +39,10 @@ func LoadConfig() *Config {
 	if err != nil {
 		panic("Error loading .env file")
 	}
+
+	// read list brokers
+	brokerStr := getEnv("KAFKA_BROKERS")
+	brokers := strings.Split(brokerStr, ",")
 
 	return &Config{
 		Port: getEnv("APP_PORT"),
@@ -48,6 +58,9 @@ func LoadConfig() *Config {
 		Redis: Redis{
 			Host: getEnv("REDIS_HOST"),
 			Port: getEnv("REDIS_PORT"),
+		},
+		Kafka: Kafka{
+			Brokers: brokers,
 		},
 		BookingLockTTL: getEnv("BOOKING_LOCK_TTL"),
 	}
