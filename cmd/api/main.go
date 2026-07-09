@@ -7,7 +7,6 @@ import (
 	"booking-system/internal/booking/delivery/ws"
 	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
-	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
 	expirebookingUC "booking-system/internal/booking/usecase/expire_booking"
 	handlepayment "booking-system/internal/booking/usecase/handle_payment"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
@@ -20,6 +19,7 @@ import (
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/middleware"
+	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
 	"context"
 	"log"
@@ -74,13 +74,13 @@ func main() {
 	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 
-	grpcConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}
-	defer grpcConn.Close()
+	defer busConn.Close()
 
-	busGrpcClient := buspb.NewBusServiceClient(grpcConn)
+	busGrpcClient := buspb.NewBusServiceClient(busConn)
 
 	busProvider := provider.NewBusProvider(busGrpcClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
@@ -93,16 +93,20 @@ func main() {
 	)
 
 	bookingRepo := postgresRepository.NewBookingRepository(db)
-	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
-	userRepo := postgresRepository.NewUserRepository(db)
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
-	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
 	seatPortAdapter := &provider.SeatPortAdapter{Repo: seatRepo}
 	busPortAdapter := &provider.BusPortAdapter{Repo: busRepo}
-	pricingService := bookingService.NewPricingService()
 	paymentBus := event.NewPaymentEventBus()
 	paymentProcessor := bookingService.NewFakePaymentProcessor(paymentBus)
+
+	bookingConn, err := grpc.NewClient("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(err)
+	}
+	defer bookingConn.Close()
+
+	bookingGrpcClient := bookingpb.NewBookingServiceClient(bookingConn)
 
 	handlePaymentUsecase := handlepayment.New(
 		bookingRepoAdapter,
@@ -132,18 +136,6 @@ func main() {
 			log.Printf("DLQ worker stopped with error: %v", err)
 		}
 	}()
-
-	confirmBookingUsecase := confirmbookingUC.New(
-		bookingRepoAdapter,
-		bookingSeatRepo,
-		userPortAdapter,
-		seatLockRepo,
-		busProvider,
-		pricingService,
-		txManager,
-		bookingLockRepo,
-		paymentPublisher,
-	)
 
 	expireBookingUsecase := expirebookingUC.New(
 		bookingRepoAdapter,
@@ -175,7 +167,7 @@ func main() {
 	api.Use(middleware.ErrorHandler())
 
 	httpBusDelivery.RegiserBusRouter(api, busHandler)
-	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, confirmBookingUsecase))
+	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient, paymentPublisher))
 
 	r.GET("/ws/buses/:id", h.Handle)
 

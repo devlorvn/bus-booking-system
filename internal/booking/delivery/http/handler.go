@@ -2,6 +2,7 @@ package http
 
 import (
 	httpErrors "booking-system/pkg/shared/errors"
+	bookingpb "booking-system/proto/booking/v1"
 	"errors"
 
 	"net/http"
@@ -12,20 +13,25 @@ import (
 	"booking-system/pkg/shared/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"google.golang.org/grpc/status"
 )
 
 type BookingHandler struct {
 	lockSeatUC       *lockseat.LockSeatUsecase
-	confirmBookingUC *confirmbooking.ConfirmBookingUsecase
+	bookingClient    bookingpb.BookingServiceClient
+	paymentPublisher confirmbooking.PaymentEventPublisher
 }
 
 func NewBookingHandler(
 	lockSeatUC *lockseat.LockSeatUsecase,
-	confirmBookingUC *confirmbooking.ConfirmBookingUsecase,
+	bookingClient bookingpb.BookingServiceClient,
+	paymentPublisher confirmbooking.PaymentEventPublisher,
 ) *BookingHandler {
 	return &BookingHandler{
 		lockSeatUC:       lockSeatUC,
-		confirmBookingUC: confirmBookingUC,
+		bookingClient:    bookingClient,
+		paymentPublisher: paymentPublisher,
 	}
 }
 
@@ -61,34 +67,61 @@ func (h *BookingHandler) LockSeat(c *gin.Context) {
 }
 
 func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
-	var res dto.ConfirmBookingRequest
-	if err := c.ShouldBindJSON(&res); err != nil {
+	var req dto.ConfirmBookingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(httpErrors.BadRequest("invalid request body"))
 		return
 	}
 
-	resp, err := h.confirmBookingUC.Execute(c.Request.Context(), res)
+	resp, err := h.bookingClient.ConfirmBooking(c.Request.Context(), &bookingpb.ConfirmBookingRequest{
+		BusId:      req.BusID.String(),
+		SeatCodes:  req.SeatCodes,
+		TempUserId: req.TempUserID,
+		Phone:      req.PhoneNumber,
+		UserName:   req.Name,
+		Email:      req.Email,
+	})
 	if err != nil {
+		st, ok := status.FromError(err)
 		var appError *httpErrors.AppError
-		switch {
-		case errors.Is(err, confirmbooking.ErrTempUserRequired):
-			appError = httpErrors.BadRequest(err.Error())
-		case errors.Is(err, confirmbooking.ErrPhoneRequired), errors.Is(err, confirmbooking.ErrNoSeatSelected):
-			appError = httpErrors.BadRequest(err.Error())
-		case errors.Is(err, confirmbooking.ErrBusNotFound):
-			appError = httpErrors.NotFound(err.Error())
-		case errors.Is(err, confirmbooking.ErrSeatNotFound):
-			appError = httpErrors.Conflict(err.Error())
-		case errors.Is(err, confirmbooking.ErrSeatAlreadyBooked):
-			appError = httpErrors.Conflict(err.Error())
-		case errors.Is(err, confirmbooking.ErrLockExpired):
-			appError = httpErrors.Conflict(err.Error())
-		default:
+
+		if ok {
+			switch st.Message() {
+			case confirmbooking.ErrTempUserRequired.Error():
+				appError = httpErrors.BadRequest(err.Error())
+			case confirmbooking.ErrPhoneRequired.Error(), confirmbooking.ErrNoSeatSelected.Error():
+				appError = httpErrors.BadRequest(err.Error())
+			case confirmbooking.ErrBusNotFound.Error():
+				appError = httpErrors.NotFound(err.Error())
+			case confirmbooking.ErrSeatNotFound.Error():
+				appError = httpErrors.Conflict(err.Error())
+			case confirmbooking.ErrSeatAlreadyBooked.Error():
+				appError = httpErrors.Conflict(err.Error())
+			case confirmbooking.ErrLockExpired.Error():
+				appError = httpErrors.Conflict(err.Error())
+			default:
+				appError = httpErrors.InternalServerError(err.Error())
+			}
+
+		} else {
 			appError = httpErrors.InternalServerError(err.Error())
+
 		}
 		c.Error(appError)
 		return
 	}
 
-	response.Success(c, http.StatusOK, "confirm booking sucessfully", resp)
+	bookingUUID, err := uuid.Parse(resp.BookingId)
+	if err != nil {
+		c.Error(httpErrors.InternalServerError("invalid booking id"))
+		return
+	}
+
+	_ = h.paymentPublisher.PublishBookingCreated(c.Request.Context(), bookingUUID)
+
+	response.Success(c, http.StatusOK, "confirm booking sucessfully", &dto.ConfirmBookingResponse{
+		BookingID:   bookingUUID,
+		TotalAmount: resp.TotalAmount,
+		Status:      resp.Status,
+	})
 }
