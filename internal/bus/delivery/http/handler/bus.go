@@ -2,21 +2,23 @@ package handler
 
 import (
 	"booking-system/internal/bus/dto"
-	"booking-system/internal/bus/usecase"
 	"booking-system/pkg/shared/errors"
 	"booking-system/pkg/shared/response"
 	"net/http"
+	"time"
+
+	buspb "booking-system/proto/bus/v1"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type BusHandler struct {
-	uc *usecase.BusUsecase
+	busClient buspb.BusServiceClient
 }
 
-func NewBusHandler(uc *usecase.BusUsecase) *BusHandler {
-	return &BusHandler{uc: uc}
+func NewBusHandler(busClient buspb.BusServiceClient) *BusHandler {
+	return &BusHandler{busClient: busClient}
 }
 
 func (h *BusHandler) Create(c *gin.Context) {
@@ -27,21 +29,29 @@ func (h *BusHandler) Create(c *gin.Context) {
 		return
 	}
 
-	bus, err := h.uc.Create(c.Request.Context(), req)
+	resp, err := h.busClient.CreateBus(c.Request.Context(), &buspb.CreateBusRequest{
+		LicensePlate:  req.LicensePlate,
+		FromLocation:  req.FromLocation,
+		ToLocation:    req.ToLocation,
+		DepartureTime: req.DepartureTime.Format(time.RFC3339),
+		Price:         req.Price,
+		RowName:       req.RowName,
+		SeatsPerRow:   int32(req.SeatsPerRow),
+	})
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	response.Success(c, http.StatusOK, "bus created successfully", bus)
+	response.Success(c, http.StatusOK, "bus created successfully", resp.Bus)
 }
 func (h *BusHandler) List(c *gin.Context) {
 	// Implementation for listing all buses
-	buses, err := h.uc.List(c.Request.Context())
+	resp, err := h.busClient.ListBuses(c.Request.Context(), &buspb.ListBusesRequest{})
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	response.Success(c, http.StatusOK, "buses retrieved successfully", buses)
+	response.Success(c, http.StatusOK, "buses retrieved successfully", resp.Buses)
 }
 
 func (h *BusHandler) GetSeats(c *gin.Context) {
@@ -52,13 +62,13 @@ func (h *BusHandler) GetSeats(c *gin.Context) {
 		return
 	}
 
-	seats, err := h.uc.GetSeats(c.Request.Context(), busID)
+	resp, err := h.busClient.GetSeats(c.Request.Context(), &buspb.GetSeatsRequest{BusId: busID.String()})
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	response.Success(c, http.StatusOK, "seats retrieved successfully", seats)
+	response.Success(c, http.StatusOK, "seats retrieved successfully", resp.Seats)
 }
 
 func (h *BusHandler) GetByID(c *gin.Context) {
@@ -70,18 +80,18 @@ func (h *BusHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	bus, err := h.uc.GetByID(c.Request.Context(), busID)
+	resp, err := h.busClient.GetBus(c.Request.Context(), &buspb.GetBusRequest{BusId: busID.String()})
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	if bus == nil {
+	if resp.Bus == nil {
 		c.Error(errors.NotFound("bus not found"))
 		return
 	}
 
-	response.Success(c, http.StatusOK, "bus retrieved successfully", bus)
+	response.Success(c, http.StatusOK, "bus retrieved successfully", resp.Bus)
 }
 
 func (h *BusHandler) Update(c *gin.Context) {
@@ -110,7 +120,7 @@ func (h *BusHandler) Delete(c *gin.Context) {
 		c.Error(errors.BadRequest("invalid bus ID"))
 		return
 	}
-	err = h.uc.Delete(c.Request.Context(), busID)
+	_, err = h.busClient.DeleteBus(c.Request.Context(), &buspb.DeleteBusRequest{BusId: busID.String()})
 	if err != nil {
 		c.Error(err)
 		return

@@ -12,7 +12,6 @@ import (
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
-	"booking-system/internal/bus/usecase"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
 	"booking-system/pkg/postgres"
@@ -152,10 +151,6 @@ func main() {
 		}
 	}()
 
-	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
-	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, seatLockRepo, txManager)
-	busHandler := httpBusHandler.NewBusHandler(busUsecase)
-
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -166,7 +161,7 @@ func main() {
 
 	api.Use(middleware.ErrorHandler())
 
-	httpBusDelivery.RegiserBusRouter(api, busHandler)
+	httpBusDelivery.RegiserBusRouter(api, httpBusHandler.NewBusHandler(busGrpcClient))
 	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient, paymentPublisher))
 
 	r.GET("/ws/buses/:id", h.Handle)

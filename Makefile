@@ -11,8 +11,14 @@ migrate-down:
 migrate-create:
 	migrate create -ext sql -dir migrations -seq $(name)
 
-dev:
+dev-api-gateway:
 	go run cmd/api/main.go
+
+dev-bus-service:
+	go run cmd/bus-service/main.go
+
+dev-booking-service:
+	go run cmd/booking-service/main.go
 
 build:
 	go build -o bin/api cmd/api/main.go
@@ -21,4 +27,4 @@ seed:
 	go run cmd/seed/main.go
 
 gen-proto:
-	./scripts/gen_proto.sh
+	go run scripts/gen_proto.go
