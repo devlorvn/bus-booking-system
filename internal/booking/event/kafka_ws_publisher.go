@@ -1,6 +1,7 @@
 package event
 
 import (
+	"booking-system/pkg/shared/constants"
 	"context"
 	"encoding/json"
 
@@ -19,7 +20,7 @@ func NewKafkaWsPublisher(writer *kafka.Writer) *KafkaWsPublisher {
 
 func (p *KafkaWsPublisher) PublishSeatLocked(busId string, seatID string, seatCode string, tempUserId string) error {
 	payload := map[string]interface{}{
-		"event":  "SEAT_LOCKED",
+		"event":  constants.EventTypeSeatLocked,
 		"bus_id": busId,
 		"data": map[string]string{
 			"bus_id":       busId,
@@ -42,7 +43,7 @@ func (p *KafkaWsPublisher) PublishSeatLocked(busId string, seatID string, seatCo
 
 func (p *KafkaWsPublisher) PublishSeatReleased(busId string, seatCode string) error {
 	payload := map[string]interface{}{
-		"event":  "SEAT_RELEASED",
+		"event":  constants.EventTypeSeatUnlocked,
 		"bus_id": busId,
 		"data": map[string]string{
 			"bus_id":    busId,

@@ -1,16 +1,12 @@
 package ws
 
-type EventType string
-
-const (
-	EventTypeSeatLocked   EventType = "seat_locked"
-	EventTypeSeatUnlocked EventType = "seat_unlocked"
-	EventBookingConfirmed           = "booking_confirmed"
+import (
+	"booking-system/pkg/shared/constants"
 )
 
 type BroadcastMessage struct {
-	Event EventType `json:"event"`
-	Data  any       `json:"data"`
+	Event constants.EventType `json:"event"`
+	Data  any                 `json:"data"`
 }
 
 type SeatLockPayload struct {

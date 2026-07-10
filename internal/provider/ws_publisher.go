@@ -2,6 +2,7 @@ package provider
 
 import (
 	"booking-system/internal/booking/delivery/ws"
+	"booking-system/pkg/shared/constants"
 )
 
 type WSEventPublisher struct {
@@ -21,7 +22,7 @@ func (p *WSEventPublisher) PublishSeatLocked(
 	tempUserID string,
 ) error {
 	msg := ws.BroadcastMessage{
-		Event: ws.EventTypeSeatLocked,
+		Event: constants.EventTypeSeatLocked,
 		Data: ws.SeatLockPayload{
 			BusID:      busID,
 			SeatID:     seatID,
@@ -39,7 +40,7 @@ func (p *WSEventPublisher) PublishSeatReleased(
 	seatCode string,
 ) error {
 	msg := ws.BroadcastMessage{
-		Event: ws.EventTypeSeatUnlocked,
+		Event: constants.EventTypeSeatUnlocked,
 		Data: ws.SeatUnlockPayload{
 			BusID:    busID,
 			SeatCode: seatCode,

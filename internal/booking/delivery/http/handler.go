@@ -18,20 +18,20 @@ import (
 )
 
 type BookingHandler struct {
-	lockSeatUC       *lockseat.LockSeatUsecase
-	bookingClient    bookingpb.BookingServiceClient
-	paymentPublisher confirmbooking.PaymentEventPublisher
+	lockSeatUC    *lockseat.LockSeatUsecase
+	bookingClient bookingpb.BookingServiceClient
+	// paymentPublisher confirmbooking.PaymentEventPublisher
 }
 
 func NewBookingHandler(
 	lockSeatUC *lockseat.LockSeatUsecase,
 	bookingClient bookingpb.BookingServiceClient,
-	paymentPublisher confirmbooking.PaymentEventPublisher,
+	// paymentPublisher confirmbooking.PaymentEventPublisher,
 ) *BookingHandler {
 	return &BookingHandler{
-		lockSeatUC:       lockSeatUC,
-		bookingClient:    bookingClient,
-		paymentPublisher: paymentPublisher,
+		lockSeatUC:    lockSeatUC,
+		bookingClient: bookingClient,
+		// paymentPublisher: paymentPublisher,
 	}
 }
 
@@ -117,7 +117,7 @@ func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
 		return
 	}
 
-	_ = h.paymentPublisher.PublishBookingCreated(c.Request.Context(), bookingUUID)
+	// _ = h.paymentPublisher.PublishBookingCreated(c.Request.Context(), bookingUUID)
 
 	response.Success(c, http.StatusOK, "confirm booking sucessfully", &dto.ConfirmBookingResponse{
 		BookingID:   bookingUUID,

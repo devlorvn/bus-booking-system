@@ -5,18 +5,17 @@ import (
 	httpBooking "booking-system/internal/booking/delivery/http"
 	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/delivery/ws"
-	"booking-system/internal/booking/event"
-	bookingService "booking-system/internal/booking/service"
 	expirebookingUC "booking-system/internal/booking/usecase/expire_booking"
-	handlepayment "booking-system/internal/booking/usecase/handle_payment"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
+	"booking-system/pkg/kafka"
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
+	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/middleware"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
@@ -70,7 +69,6 @@ func main() {
 
 	eventPublisher := provider.NewWSEventPublisher(hub)
 
-	busRepo := postgresRepository.NewBusRepository(db)
 	seatRepo := postgresRepository.NewSeatRepository(db)
 
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -83,7 +81,6 @@ func main() {
 
 	busProvider := provider.NewBusProvider(busGrpcClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
-	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 
 	lockSeatUsecase := lockseatUC.New(
 		busProvider,
@@ -95,9 +92,6 @@ func main() {
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	seatPortAdapter := &provider.SeatPortAdapter{Repo: seatRepo}
-	busPortAdapter := &provider.BusPortAdapter{Repo: busRepo}
-	paymentBus := event.NewPaymentEventBus()
-	paymentProcessor := bookingService.NewFakePaymentProcessor(paymentBus)
 
 	bookingConn, err := grpc.NewClient("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -106,35 +100,6 @@ func main() {
 	defer bookingConn.Close()
 
 	bookingGrpcClient := bookingpb.NewBookingServiceClient(bookingConn)
-
-	handlePaymentUsecase := handlepayment.New(
-		bookingRepoAdapter,
-		seatPortAdapter,
-		busPortAdapter,
-		bookingLockRepo,
-		eventPublisher,
-		txManager,
-	)
-	paymentPublisher := event.NewPaymentPublisher(paymentBus)
-	paymentWorker := worker.NewPaymentWorker(paymentBus, paymentProcessor, handlePaymentUsecase)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := paymentWorker.Start(workerCtx); err != nil && err != context.Canceled {
-			log.Printf("Payment worker stopped with error: %v", err)
-		}
-	}()
-
-	// Start DLQWorker as well to handle failed payment tasks and prevent blocking on DLQ channel
-	dlqWorker := worker.NewDLQWorker(paymentBus)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := dlqWorker.Start(workerCtx); err != nil && err != context.Canceled {
-			log.Printf("DLQ worker stopped with error: %v", err)
-		}
-	}()
 
 	expireBookingUsecase := expirebookingUC.New(
 		bookingRepoAdapter,
@@ -151,6 +116,27 @@ func main() {
 		}
 	}()
 
+	// Initial reader
+	kafkaReader := kafka.NewReader(
+		cfg.Kafka.Brokers,
+		constants.NotificationTopic,
+		constants.APIGatewayWebSocketPollGroup,
+	)
+	defer kafkaReader.Close()
+
+	wsConsumer := ws.NewWsConsumer(
+		kafkaReader,
+		hub,
+	)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := wsConsumer.Consume(workerCtx); err != nil && err != context.Canceled {
+			log.Printf("WS consumer: stopped with error: %v", err)
+		}
+	}()
+
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -162,7 +148,7 @@ func main() {
 	api.Use(middleware.ErrorHandler())
 
 	httpBusDelivery.RegiserBusRouter(api, httpBusHandler.NewBusHandler(busGrpcClient))
-	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient, paymentPublisher))
+	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient))
 
 	r.GET("/ws/buses/:id", h.Handle)
 
