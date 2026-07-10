@@ -23,7 +23,7 @@ func main() {
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)
 
-	reader := kafka.NewReader(config.Kafka.Brokers, constants.BookingTopic, constants.PaymentServicePoll)
+	reader := kafka.NewReader(config.Kafka.Brokers, constants.BookingTopic, constants.PaymentServicePollGroup)
 	defer reader.Close()
 
 	writer := kafka.NewWriter(config.Kafka.Brokers, constants.PaymentTopic)

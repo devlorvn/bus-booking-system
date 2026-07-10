@@ -3,21 +3,28 @@ package main
 import (
 	"booking-system/configs"
 	bookinggrpc "booking-system/internal/booking/delivery/grpc"
+	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
+	handlepaymentUC "booking-system/internal/booking/usecase/handle_payment"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
+	"booking-system/pkg/kafka"
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
+	"booking-system/pkg/shared/constants"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
+	"context"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -43,22 +50,41 @@ func main() {
 	bookingRepo := postgresRepository.NewBookingRepository(db)
 	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
 	userRepo := postgresRepository.NewUserRepository(db)
+	seatRepo := postgresRepository.NewSeatRepository(db)
+	busRepo := postgresRepository.NewBusRepository(db)
+
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
 	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
-	// 1. Kết nối gRPC sang Bus Service (cổng 50051)
+
+	// Connecting gRPC Bus Service (port 50051)
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal("failed to connect to bus service: ", err)
 	}
 	defer busConn.Close()
+
 	busGrpcClient := buspb.NewBusServiceClient(busConn)
-	busProvider := provider.NewBusProvider(busGrpcClient) // Giao tiếp với Bus Service qua gRPC
+	busProvider := provider.NewBusProvider(busGrpcClient) // connect to Bus Service via gRPC
 	pricingService := bookingService.NewPricingService()
-	paymentBus := event.NewPaymentEventBus()
-	paymentPublisher := event.NewPaymentPublisher(paymentBus)
-	// 2. Khởi tạo ConfirmBookingUsecase
+
+	// setting kafka publishers and consumers
+	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
+	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)
+	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.NotificationTopic, 1, 1)
+
+	// Booking created publisher
+	kafkaWriter := kafka.NewWriter(config.Kafka.Brokers, constants.BookingTopic)
+	defer kafkaWriter.Close()
+	paymentPublisher := event.NewKafkaPaymentPublisher(kafkaWriter)
+
+	// ws event publisher
+	kafkaWsWriter := kafka.NewWriter(config.Kafka.Brokers, constants.NotificationTopic)
+	defer kafkaWsWriter.Close()
+	wsPublisher := event.NewKafkaWsPublisher(kafkaWsWriter)
+
+	// Initial ConfirmBookingUsecase
 	confirmBookingUsecase := confirmbookingUC.New(
 		bookingRepoAdapter,
 		bookingSeatRepo,
@@ -70,7 +96,36 @@ func main() {
 		bookingLockRepo,
 		paymentPublisher,
 	)
-	// 3. Khởi chạy gRPC Server của Booking trên cổng 50052
+
+	// Initial handle payment usecase
+	handlerPaymentUsecase := handlepaymentUC.New(
+		bookingRepoAdapter,
+		seatRepo,
+		busRepo,
+		bookingLockRepo,
+		wsPublisher,
+		txManager,
+	)
+
+	// Initial payment consumer worker
+	kafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
+	defer kafkaReader.Close()
+
+	paymentWorker := worker.NewPaymentWorker(kafkaReader, handlerPaymentUsecase)
+	workerCtx, cancelWorker := context.WithCancel(context.Background())
+	defer cancelWorker()
+
+	// Running payment consumer worker
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := paymentWorker.Start(workerCtx); err != nil {
+			log.Fatal("payment worker failed: ", err)
+		}
+	}()
+
+	// Running Booking gRPC server on port 50052
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Fatal("failed to listen: ", err)
@@ -78,7 +133,8 @@ func main() {
 	grpcServer := grpc.NewServer()
 	bookingGrpcServer := bookinggrpc.NewBookingGRPCServer(confirmBookingUsecase)
 	bookingpb.RegisterBookingServiceServer(grpcServer, bookingGrpcServer)
-	// Đăng ký reflection để debug gRPC tiện lợi
+
+	// Register reflection for debuging
 	reflection.Register(grpcServer)
 	go func() {
 		log.Printf("Booking gRPC server started on port %s", lis.Addr().String())
@@ -86,11 +142,27 @@ func main() {
 			log.Fatal("failed to serve: ", err)
 		}
 	}()
-	// Xử lý Graceful Shutdown
+
+	// Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down Booking gRPC server...")
 	grpcServer.GracefulStop()
+
+	cancelWorker()
+	workerDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(workerDone)
+	}()
+
+	select {
+	case <-workerDone:
+		log.Println("Payment worker exited")
+	case <-time.After(5 * time.Second):
+		log.Println("Payment worker timeout")
+	}
+
 	log.Println("Booking gRPC server exited")
 }
