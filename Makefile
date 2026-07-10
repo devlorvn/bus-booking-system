@@ -20,6 +20,9 @@ dev-bus-service:
 dev-booking-service:
 	go run cmd/booking-service/main.go
 
+dev-payment-service:
+	go run cmd/payment-service/main.go
+
 build:
 	go build -o bin/api cmd/api/main.go
 

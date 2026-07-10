@@ -6,6 +6,7 @@ import (
 	busDomain "booking-system/internal/bus/domain"
 	"booking-system/pkg/shared"
 	"context"
+	"log"
 
 	"github.com/google/uuid"
 )
@@ -145,7 +146,10 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 		_ = u.bookingLock.Release(ctx, bookingID, seatCodes)
 
 		for _, seatCode := range seatCodes {
-			_ = u.eventPublisher.PublishSeatReleased(booking.BusID.String(), seatCode)
+			err := u.eventPublisher.PublishSeatReleased(booking.BusID.String(), seatCode)
+			if err != nil {
+				log.Printf("[HandlePayment Usecase] Error publishing seat_unlocked event: %v", err)
+			}
 		}
 	}
 

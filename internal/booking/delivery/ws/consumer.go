@@ -43,6 +43,9 @@ func (c *WsConsumer) Consume(ctx context.Context) error {
 			log.Printf("Error reading message: %v", err)
 			continue
 		}
+
+		log.Printf("[WsConsumer] Received Kafka message: Key=%s, Value=%s", string(msg.Key), string(msg.Value))
+
 		if msg.Key == nil {
 			log.Println("Message has no key, skipping")
 			continue
