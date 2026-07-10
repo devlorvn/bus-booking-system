@@ -3,17 +3,12 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
-	"booking-system/internal/booking/delivery/worker"
 	"booking-system/internal/booking/delivery/ws"
-	expirebookingUC "booking-system/internal/booking/usecase/expire_booking"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
 	"booking-system/internal/provider"
-	"booking-system/pkg/database"
 	"booking-system/pkg/kafka"
-	"booking-system/pkg/postgres"
-	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/middleware"
@@ -35,18 +30,12 @@ import (
 
 func main() {
 	cfg := configs.LoadConfig()
-	db, err := postgres.NewPostgres(&cfg.Database)
-	if err != nil {
-		panic(err)
-	}
 
 	if cfg.Mode == "development" {
-		postgres.AutoMigrate(db)
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	txManager := database.NewTransaction(db)
 
 	redisClient := redis.NewClient(&cfg.Redis)
 
@@ -69,8 +58,6 @@ func main() {
 
 	eventPublisher := provider.NewWSEventPublisher(hub)
 
-	seatRepo := postgresRepository.NewSeatRepository(db)
-
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -88,11 +75,6 @@ func main() {
 		eventPublisher,
 	)
 
-	bookingRepo := postgresRepository.NewBookingRepository(db)
-
-	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
-	seatPortAdapter := &provider.SeatPortAdapter{Repo: seatRepo}
-
 	bookingConn, err := grpc.NewClient("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -100,21 +82,6 @@ func main() {
 	defer bookingConn.Close()
 
 	bookingGrpcClient := bookingpb.NewBookingServiceClient(bookingConn)
-
-	expireBookingUsecase := expirebookingUC.New(
-		bookingRepoAdapter,
-		seatPortAdapter,
-		txManager,
-	)
-
-	lockExpirationWorker := worker.NewLockExpirationWorker(redisClient, eventPublisher, expireBookingUsecase)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := lockExpirationWorker.Start(workerCtx); err != nil && err != context.Canceled {
-			log.Printf("Lock expiration worker stopped with error: %v", err)
-		}
-	}()
 
 	// Initial reader
 	kafkaReader := kafka.NewReader(
@@ -195,16 +162,6 @@ func main() {
 		log.Println("All background workers stopped successfully")
 	case <-time.After(5 * time.Second):
 		log.Println("Timeout waiting for background workers to stop")
-	}
-
-	// 3. Close database and Redis connections
-	sqlDB, err := db.DB()
-	if err == nil {
-		if err := sqlDB.Close(); err != nil {
-			log.Printf("Error closing DB connection: %v", err)
-		} else {
-			log.Println("DB connection closed successfully")
-		}
 	}
 
 	if err := redisClient.Close(); err != nil {

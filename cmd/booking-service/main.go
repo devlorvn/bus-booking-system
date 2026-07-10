@@ -7,6 +7,7 @@ import (
 	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
+	expirebookinguc "booking-system/internal/booking/usecase/expire_booking"
 	handlepaymentUC "booking-system/internal/booking/usecase/handle_payment"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
@@ -107,6 +108,20 @@ func main() {
 		txManager,
 	)
 
+	// Initial expire booking usecase
+	expireBookingUsecase := expirebookinguc.New(
+		bookingRepoAdapter,
+		seatRepo,
+		txManager,
+	)
+
+	// Initial lock expiration worker
+	lockExpirationWorker := worker.NewLockExpirationWorker(
+		redisClient,
+		wsPublisher,
+		expireBookingUsecase,
+	)
+
 	// Initial payment consumer worker
 	kafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
 	defer kafkaReader.Close()
@@ -122,6 +137,15 @@ func main() {
 		defer wg.Done()
 		if err := paymentWorker.Start(workerCtx); err != nil {
 			log.Fatal("payment worker failed: ", err)
+		}
+	}()
+
+	//Running lock expiration worker
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := lockExpirationWorker.Start(workerCtx); err != nil {
+			log.Fatal("lock expiration worker failed: ", err)
 		}
 	}()
 
