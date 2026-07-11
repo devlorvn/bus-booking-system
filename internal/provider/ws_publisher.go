@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"booking-system/internal/booking/delivery/ws"
+	"booking-system/internal/notification/ws"
 	"booking-system/pkg/shared/constants"
 )
 

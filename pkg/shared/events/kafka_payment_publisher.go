@@ -1,7 +1,6 @@
-package event
+package events
 
 import (
-	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
 
@@ -20,7 +19,7 @@ func NewKafkaPaymentPublisher(writer *kafka.Writer) *KafkaPaymentPublisher {
 }
 
 func (p *KafkaPaymentPublisher) PublishBookingCreated(ctx context.Context, bookingID uuid.UUID) error {
-	eventMsg := events.BookingCreatedEvent{
+	eventMsg := BookingCreatedEvent{
 		BookingID: bookingID,
 	}
 

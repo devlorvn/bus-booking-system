@@ -23,6 +23,9 @@ dev-booking-service:
 dev-payment-service:
 	go run cmd/payment-service/main.go
 
+dev-notification-service:
+	go run cmd/notification-service/main.go
+
 build:
 	go build -o bin/api cmd/api/main.go
 

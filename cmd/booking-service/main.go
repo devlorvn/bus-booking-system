@@ -4,7 +4,6 @@ import (
 	"booking-system/configs"
 	bookinggrpc "booking-system/internal/booking/delivery/grpc"
 	"booking-system/internal/booking/delivery/worker"
-	"booking-system/internal/booking/event"
 	bookingService "booking-system/internal/booking/service"
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
 	expirebookinguc "booking-system/internal/booking/usecase/expire_booking"
@@ -16,6 +15,7 @@ import (
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
+	"booking-system/pkg/shared/events"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
 	"context"
@@ -78,12 +78,12 @@ func main() {
 	// Booking created publisher
 	kafkaWriter := kafka.NewWriter(config.Kafka.Brokers, constants.BookingTopic)
 	defer kafkaWriter.Close()
-	paymentPublisher := event.NewKafkaPaymentPublisher(kafkaWriter)
+	paymentPublisher := events.NewKafkaPaymentPublisher(kafkaWriter)
 
 	// ws event publisher
 	kafkaWsWriter := kafka.NewWriter(config.Kafka.Brokers, constants.NotificationTopic)
 	defer kafkaWsWriter.Close()
-	wsPublisher := event.NewKafkaWsPublisher(kafkaWsWriter)
+	wsPublisher := events.NewKafkaWsPublisher(kafkaWsWriter)
 
 	// Initial ConfirmBookingUsecase
 	confirmBookingUsecase := confirmbookingUC.New(

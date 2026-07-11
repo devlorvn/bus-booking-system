@@ -3,7 +3,6 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
-	"booking-system/internal/booking/delivery/ws"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
@@ -11,6 +10,7 @@ import (
 	"booking-system/pkg/kafka"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
+	"booking-system/pkg/shared/events"
 	"booking-system/pkg/shared/middleware"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
@@ -39,24 +39,15 @@ func main() {
 
 	redisClient := redis.NewClient(&cfg.Redis)
 
-	// Web socket hub
-	hub := ws.NewHub()
-
-	// Create worker context
-	workerCtx, cancelWorkers := context.WithCancel(context.Background())
-	defer cancelWorkers()
-
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		hub.Run(workerCtx)
-	}()
+	kafkaWriter := kafka.NewWriter(
+		cfg.Kafka.Brokers,
+		constants.NotificationTopic,
+	)
+	defer kafkaWriter.Close()
 
-	h := ws.NewHandler(hub)
-
-	eventPublisher := provider.NewWSEventPublisher(hub)
+	eventPublisher := events.NewKafkaWsPublisher(kafkaWriter)
 
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -83,27 +74,6 @@ func main() {
 
 	bookingGrpcClient := bookingpb.NewBookingServiceClient(bookingConn)
 
-	// Initial reader
-	kafkaReader := kafka.NewReader(
-		cfg.Kafka.Brokers,
-		constants.NotificationTopic,
-		constants.APIGatewayWebSocketPollGroup,
-	)
-	defer kafkaReader.Close()
-
-	wsConsumer := ws.NewWsConsumer(
-		kafkaReader,
-		hub,
-	)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := wsConsumer.Consume(workerCtx); err != nil && err != context.Canceled {
-			log.Printf("WS consumer: stopped with error: %v", err)
-		}
-	}()
-
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -116,8 +86,6 @@ func main() {
 
 	httpBusDelivery.RegiserBusRouter(api, httpBusHandler.NewBusHandler(busGrpcClient))
 	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient))
-
-	r.GET("/ws/buses/:id", h.Handle)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -146,9 +114,6 @@ func main() {
 	} else {
 		log.Println("HTTP server shut down successfully")
 	}
-
-	// 2. Stop workers
-	cancelWorkers()
 
 	// Wait for all background workers to stop (with a timeout of 5 seconds)
 	workersDone := make(chan struct{})
