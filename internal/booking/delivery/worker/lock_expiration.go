@@ -3,11 +3,14 @@ package worker
 import (
 	"booking-system/internal/booking/ports"
 	expirebooking "booking-system/internal/booking/usecase/expire_booking"
+	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/helpers"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -30,6 +33,8 @@ func NewLockExpirationWorker(
 	}
 }
 func (w *LockExpirationWorker) Start(ctx context.Context) error {
+	log.Println("Lock expiration worker started")
+
 	pubsub := w.client.Subscribe(
 		ctx,
 		"__keyevent@0__:expired",
@@ -38,11 +43,15 @@ func (w *LockExpirationWorker) Start(ctx context.Context) error {
 
 	ch := pubsub.Channel()
 
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-
+		case <-ticker.C:
+			w.pollingBookingExpirations(ctx)
 		case msg, ok := <-ch:
 			if !ok {
 				log.Println("Redis pubsub channel closed, stopping worker.")
@@ -92,6 +101,58 @@ func (w *LockExpirationWorker) Start(ctx context.Context) error {
 			default:
 				continue
 			}
+		}
+	}
+}
+
+func (w *LockExpirationWorker) pollingBookingExpirations(ctx context.Context) {
+	members, err := w.client.ZRangeByScoreWithScores(ctx, constants.BookingExpirationQueue, &goredis.ZRangeBy{
+		Min: "-inf",
+		Max: fmt.Sprintf("%d", time.Now().Unix()),
+	}).Result()
+
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		log.Println("Lock expiration worker: zrange by score error:", err)
+		return
+	}
+
+	for _, member := range members {
+		bookingID, seatCodes, err := helpers.ParseBookingLockKey(member.Member.(string))
+		if err != nil {
+			log.Printf("Lock expiration worker: parse err: %v", err)
+			continue
+		}
+
+		booking, err := w.expireBooking.Execute(ctx, bookingID)
+		if err != nil {
+			if err.Error() == "BOOKING_STATUS_NOT_PENDING" {
+				err := w.client.ZRem(ctx, constants.BookingExpirationQueue, member.Member).Err()
+				if err != nil {
+					log.Printf("Lock expiration worker: zrem err: %v", err)
+				}
+				continue
+			}
+
+			if ctx.Err() != nil {
+				return
+			}
+			log.Printf("Lock expiration worker: expire err: %v", err)
+
+			continue
+		}
+
+		for _, seatCode := range seatCodes {
+			err = w.eventPublisher.PublishSeatReleased(booking.BusID.String(), seatCode)
+			if err != nil {
+				log.Printf("Lock expiration worker: publish seat released err: %v", err)
+			}
+		}
+		err = w.client.ZRem(ctx, constants.BookingExpirationQueue, member.Member).Err()
+		if err != nil {
+			log.Printf("Lock expiration worker: zrem err: %v", err)
 		}
 	}
 }

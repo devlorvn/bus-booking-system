@@ -184,8 +184,10 @@ func main() {
 	select {
 	case <-workerDone:
 		log.Println("Payment worker exited")
+		log.Println("Lock expiration worker exited")
 	case <-time.After(5 * time.Second):
 		log.Println("Payment worker timeout")
+		log.Println("Lock expiration worker timeout")
 	}
 
 	log.Println("Booking gRPC server exited")

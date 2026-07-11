@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"booking-system/pkg/shared/constants"
 	"context"
 	"fmt"
 	"sort"
@@ -10,8 +11,6 @@ import (
 	"github.com/google/uuid"
 	goredis "github.com/redis/go-redis/v9"
 )
-
-const bookingLockTTL = 15 * time.Minute
 
 type LockBookingRepository struct {
 	client *goredis.Client
@@ -24,19 +23,47 @@ func NewLockBookingRepository(client *goredis.Client) *LockBookingRepository {
 }
 
 func (r *LockBookingRepository) Create(ctx context.Context, bookingID uuid.UUID, seatCodes []string) error {
-	return r.client.SetNX(
+	key := buildBookingLockKey(bookingID, seatCodes)
+	err := r.client.SetNX(
 		ctx,
-		buildBookingLockKey(bookingID, seatCodes),
+		key,
 		bookingID.String(),
-		bookingLockTTL,
+		constants.BookingLockTTL,
 	).Err()
+	if err != nil {
+		return err
+	}
+
+	expireAt := time.Now().Add(constants.BookingLockTTL).Unix()
+
+	err = r.client.ZAdd(
+		ctx,
+		constants.BookingExpirationQueue,
+		goredis.Z{
+			Score:  float64(expireAt),
+			Member: key,
+		},
+	).Err()
+
+	return err
 }
 
 func (r *LockBookingRepository) Release(ctx context.Context, bookingID uuid.UUID, seatCodes []string) error {
-	return r.client.Del(
+	key := buildBookingLockKey(bookingID, seatCodes)
+	err := r.client.Del(
 		ctx,
-		buildBookingLockKey(bookingID, seatCodes),
+		key,
 	).Err()
+	if err != nil {
+		return err
+	}
+
+	err = r.client.ZRem(
+		ctx,
+		constants.BookingExpirationQueue,
+		key,
+	).Err()
+	return err
 }
 
 func (r *LockBookingRepository) AcquireConfirmLock(ctx context.Context, tempUserID string) error {
@@ -44,7 +71,7 @@ func (r *LockBookingRepository) AcquireConfirmLock(ctx context.Context, tempUser
 		ctx,
 		buildConfirmLockKey(tempUserID),
 		tempUserID,
-		bookingLockTTL,
+		constants.BookingLockTTL,
 	).Err()
 }
 
@@ -56,13 +83,17 @@ func (r *LockBookingRepository) ReleaseConfirmLock(ctx context.Context, tempUser
 }
 
 func buildBookingLockKey(bookingID uuid.UUID, seatCodes []string) string {
-	sortedSeatCodes := make([]string, len(seatCodes))
-	copy(sortedSeatCodes, seatCodes)
-	sort.Strings(sortedSeatCodes)
-	seatCodesStr := strings.Join(sortedSeatCodes, ",")
+	seatCodesStr := buildSeatCodesStr(seatCodes)
 	return fmt.Sprintf("booking_lock:%s:%s", bookingID.String(), seatCodesStr)
 }
 
 func buildConfirmLockKey(tempUserID string) string {
 	return fmt.Sprintf("confirm_lock:%s", tempUserID)
+}
+
+func buildSeatCodesStr(seatCodes []string) string {
+	sortedSeatCodes := make([]string, len(seatCodes))
+	copy(sortedSeatCodes, seatCodes)
+	sort.Strings(sortedSeatCodes)
+	return strings.Join(sortedSeatCodes, ",")
 }

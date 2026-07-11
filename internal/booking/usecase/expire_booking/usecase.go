@@ -42,7 +42,7 @@ func (u *ExpireBookingUsecase) Execute(ctx context.Context, bookingID uuid.UUID)
 		}
 
 		if booking.Status != "PENDING_PAYMENT" {
-			return errors.New("booking is not pending payment")
+			return errors.New("BOOKING_STATUS_NOT_PENDING")
 		}
 
 		booking.Status = "EXPIRED"
