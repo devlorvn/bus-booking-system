@@ -43,7 +43,7 @@ func (w *LockExpirationWorker) Start(ctx context.Context) error {
 
 	ch := pubsub.Channel()
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -73,30 +73,6 @@ func (w *LockExpirationWorker) Start(ctx context.Context) error {
 				)
 				if err != nil {
 					log.Println("publish error:", err)
-				}
-			case strings.HasPrefix(msg.Payload, "booking_lock:"):
-				log.Println("booking lock expired:", msg.Payload)
-
-				bookingID, seatCodes, err := helpers.ParseBookingLockKey(msg.Payload)
-				if err != nil {
-					log.Println("parse error:", err)
-					continue
-				}
-
-				booking, err := w.expireBooking.Execute(ctx, bookingID)
-				if err != nil {
-					log.Println("expire booking error:", err)
-					continue
-				}
-
-				for _, seatCode := range seatCodes {
-					err = w.eventPublisher.PublishSeatReleased(
-						booking.BusID.String(),
-						seatCode,
-					)
-					if err != nil {
-						log.Println("publish error:", err)
-					}
 				}
 			default:
 				continue
