@@ -51,3 +51,7 @@ func (u *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 func (u *UserUsecase) List(ctx context.Context) ([]*domain.User, error) {
 	return u.repo.List(ctx)
 }
+
+func (u *UserUsecase) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
+	return u.repo.FindByPhone(ctx, phone)
+}

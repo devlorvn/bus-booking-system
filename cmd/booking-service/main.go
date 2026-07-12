@@ -19,6 +19,7 @@ import (
 	"booking-system/pkg/shared/events"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
+	userpb "booking-system/proto/user/v1"
 	"context"
 	"log"
 	"net"
@@ -51,12 +52,11 @@ func main() {
 	// Initial repository and adapters
 	bookingRepo := postgresRepository.NewBookingRepository(db)
 	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
-	userRepo := postgresRepository.NewUserRepository(db)
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
-	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
 	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
+	pricingService := bookingService.NewPricingService()
 
 	// Connecting gRPC Bus Service (port 50051)
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -67,7 +67,16 @@ func main() {
 
 	busGrpcClient := buspb.NewBusServiceClient(busConn)
 	busProvider := provider.NewBusProvider(busGrpcClient) // connect to Bus Service via gRPC
-	pricingService := bookingService.NewPricingService()
+
+	// Connecting gRPC User service (port 50053)
+	userConn, err := grpc.NewClient("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal("failed to connect to user service: ", err)
+	}
+	defer userConn.Close()
+
+	userGrpcClient := userpb.NewUserServiceClient(userConn)
+	userProvider := provider.NewUserProvider(userGrpcClient) // connect to User Service via gRPC
 
 	// setting kafka publishers and consumers
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
@@ -88,7 +97,7 @@ func main() {
 	confirmBookingUsecase := confirmbookingUC.New(
 		bookingRepoAdapter,
 		bookingSeatRepo,
-		userPortAdapter,
+		userProvider,
 		seatLockRepo,
 		busProvider,
 		pricingService,

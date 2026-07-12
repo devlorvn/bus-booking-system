@@ -13,4 +13,5 @@ type UserRepository interface {
 	Update(ctx context.Context, user *domain.User) (*domain.User, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context) ([]*domain.User, error)
+	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
 }
