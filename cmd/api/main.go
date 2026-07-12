@@ -3,14 +3,9 @@ package main
 import (
 	"booking-system/configs"
 	httpBooking "booking-system/internal/booking/delivery/http"
-	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
-	"booking-system/internal/provider"
-	"booking-system/pkg/kafka"
 	"booking-system/pkg/redis"
-	"booking-system/pkg/shared/constants"
-	"booking-system/pkg/shared/events"
 	"booking-system/pkg/shared/middleware"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
@@ -41,14 +36,6 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	kafkaWriter := kafka.NewWriter(
-		cfg.Kafka.Brokers,
-		constants.NotificationTopic,
-	)
-	defer kafkaWriter.Close()
-
-	eventPublisher := events.NewKafkaWsPublisher(kafkaWriter)
-
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -56,15 +43,6 @@ func main() {
 	defer busConn.Close()
 
 	busGrpcClient := buspb.NewBusServiceClient(busConn)
-
-	busProvider := provider.NewBusProvider(busGrpcClient)
-	seatLockRepo := redis.NewLockSeatRepository(redisClient)
-
-	lockSeatUsecase := lockseatUC.New(
-		busProvider,
-		seatLockRepo,
-		eventPublisher,
-	)
 
 	bookingConn, err := grpc.NewClient("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -85,7 +63,7 @@ func main() {
 	api.Use(middleware.ErrorHandler())
 
 	httpBusDelivery.RegiserBusRouter(api, httpBusHandler.NewBusHandler(busGrpcClient))
-	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(lockSeatUsecase, bookingGrpcClient))
+	httpBooking.RegisterRoutes(api, httpBooking.NewBookingHandler(bookingGrpcClient))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

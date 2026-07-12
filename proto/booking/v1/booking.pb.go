@@ -165,6 +165,110 @@ func (x *ConfirmBookingResponse) GetStatus() string {
 	return ""
 }
 
+type LockSeatRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BusId         string                 `protobuf:"bytes,1,opt,name=bus_id,json=busId,proto3" json:"bus_id,omitempty"`
+	TempUserId    string                 `protobuf:"bytes,2,opt,name=temp_user_id,json=tempUserId,proto3" json:"temp_user_id,omitempty"`
+	SeatCodes     []string               `protobuf:"bytes,3,rep,name=seat_codes,json=seatCodes,proto3" json:"seat_codes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LockSeatRequest) Reset() {
+	*x = LockSeatRequest{}
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LockSeatRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LockSeatRequest) ProtoMessage() {}
+
+func (x *LockSeatRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LockSeatRequest.ProtoReflect.Descriptor instead.
+func (*LockSeatRequest) Descriptor() ([]byte, []int) {
+	return file_proto_booking_v1_booking_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *LockSeatRequest) GetBusId() string {
+	if x != nil {
+		return x.BusId
+	}
+	return ""
+}
+
+func (x *LockSeatRequest) GetTempUserId() string {
+	if x != nil {
+		return x.TempUserId
+	}
+	return ""
+}
+
+func (x *LockSeatRequest) GetSeatCodes() []string {
+	if x != nil {
+		return x.SeatCodes
+	}
+	return nil
+}
+
+type LockSeatResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LockSeatResponse) Reset() {
+	*x = LockSeatResponse{}
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LockSeatResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LockSeatResponse) ProtoMessage() {}
+
+func (x *LockSeatResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_booking_v1_booking_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LockSeatResponse.ProtoReflect.Descriptor instead.
+func (*LockSeatResponse) Descriptor() ([]byte, []int) {
+	return file_proto_booking_v1_booking_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LockSeatResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_proto_booking_v1_booking_proto protoreflect.FileDescriptor
 
 const file_proto_booking_v1_booking_proto_rawDesc = "" +
@@ -184,9 +288,18 @@ const file_proto_booking_v1_booking_proto_rawDesc = "" +
 	"\n" +
 	"booking_id\x18\x01 \x01(\tR\tbookingId\x12!\n" +
 	"\ftotal_amount\x18\x02 \x01(\x01R\vtotalAmount\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status2i\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\"i\n" +
+	"\x0fLockSeatRequest\x12\x15\n" +
+	"\x06bus_id\x18\x01 \x01(\tR\x05busId\x12 \n" +
+	"\ftemp_user_id\x18\x02 \x01(\tR\n" +
+	"tempUserId\x12\x1d\n" +
+	"\n" +
+	"seat_codes\x18\x03 \x03(\tR\tseatCodes\",\n" +
+	"\x10LockSeatResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\xb0\x01\n" +
 	"\x0eBookingService\x12W\n" +
-	"\x0eConfirmBooking\x12!.booking.v1.ConfirmBookingRequest\x1a\".booking.v1.ConfirmBookingResponseB+Z)booking-system/proto/booking/v1;bookingpbb\x06proto3"
+	"\x0eConfirmBooking\x12!.booking.v1.ConfirmBookingRequest\x1a\".booking.v1.ConfirmBookingResponse\x12E\n" +
+	"\bLockSeat\x12\x1b.booking.v1.LockSeatRequest\x1a\x1c.booking.v1.LockSeatResponseB+Z)booking-system/proto/booking/v1;bookingpbb\x06proto3"
 
 var (
 	file_proto_booking_v1_booking_proto_rawDescOnce sync.Once
@@ -200,16 +313,20 @@ func file_proto_booking_v1_booking_proto_rawDescGZIP() []byte {
 	return file_proto_booking_v1_booking_proto_rawDescData
 }
 
-var file_proto_booking_v1_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_booking_v1_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_booking_v1_booking_proto_goTypes = []any{
 	(*ConfirmBookingRequest)(nil),  // 0: booking.v1.ConfirmBookingRequest
 	(*ConfirmBookingResponse)(nil), // 1: booking.v1.ConfirmBookingResponse
+	(*LockSeatRequest)(nil),        // 2: booking.v1.LockSeatRequest
+	(*LockSeatResponse)(nil),       // 3: booking.v1.LockSeatResponse
 }
 var file_proto_booking_v1_booking_proto_depIdxs = []int32{
 	0, // 0: booking.v1.BookingService.ConfirmBooking:input_type -> booking.v1.ConfirmBookingRequest
-	1, // 1: booking.v1.BookingService.ConfirmBooking:output_type -> booking.v1.ConfirmBookingResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: booking.v1.BookingService.LockSeat:input_type -> booking.v1.LockSeatRequest
+	1, // 2: booking.v1.BookingService.ConfirmBooking:output_type -> booking.v1.ConfirmBookingResponse
+	3, // 3: booking.v1.BookingService.LockSeat:output_type -> booking.v1.LockSeatResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -226,7 +343,7 @@ func file_proto_booking_v1_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_booking_v1_booking_proto_rawDesc), len(file_proto_booking_v1_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

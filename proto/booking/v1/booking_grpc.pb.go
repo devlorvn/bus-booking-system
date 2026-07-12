@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	BookingService_ConfirmBooking_FullMethodName = "/booking.v1.BookingService/ConfirmBooking"
+	BookingService_LockSeat_FullMethodName       = "/booking.v1.BookingService/LockSeat"
 )
 
 // BookingServiceClient is the client API for BookingService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BookingServiceClient interface {
 	ConfirmBooking(ctx context.Context, in *ConfirmBookingRequest, opts ...grpc.CallOption) (*ConfirmBookingResponse, error)
+	LockSeat(ctx context.Context, in *LockSeatRequest, opts ...grpc.CallOption) (*LockSeatResponse, error)
 }
 
 type bookingServiceClient struct {
@@ -47,11 +49,22 @@ func (c *bookingServiceClient) ConfirmBooking(ctx context.Context, in *ConfirmBo
 	return out, nil
 }
 
+func (c *bookingServiceClient) LockSeat(ctx context.Context, in *LockSeatRequest, opts ...grpc.CallOption) (*LockSeatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LockSeatResponse)
+	err := c.cc.Invoke(ctx, BookingService_LockSeat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BookingServiceServer is the server API for BookingService service.
 // All implementations must embed UnimplementedBookingServiceServer
 // for forward compatibility.
 type BookingServiceServer interface {
 	ConfirmBooking(context.Context, *ConfirmBookingRequest) (*ConfirmBookingResponse, error)
+	LockSeat(context.Context, *LockSeatRequest) (*LockSeatResponse, error)
 	mustEmbedUnimplementedBookingServiceServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedBookingServiceServer struct{}
 
 func (UnimplementedBookingServiceServer) ConfirmBooking(context.Context, *ConfirmBookingRequest) (*ConfirmBookingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmBooking not implemented")
+}
+func (UnimplementedBookingServiceServer) LockSeat(context.Context, *LockSeatRequest) (*LockSeatResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LockSeat not implemented")
 }
 func (UnimplementedBookingServiceServer) mustEmbedUnimplementedBookingServiceServer() {}
 func (UnimplementedBookingServiceServer) testEmbeddedByValue()                        {}
@@ -104,6 +120,24 @@ func _BookingService_ConfirmBooking_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_LockSeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LockSeatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).LockSeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_LockSeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).LockSeat(ctx, req.(*LockSeatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BookingService_ServiceDesc is the grpc.ServiceDesc for BookingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConfirmBooking",
 			Handler:    _BookingService_ConfirmBooking_Handler,
+		},
+		{
+			MethodName: "LockSeat",
+			Handler:    _BookingService_LockSeat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

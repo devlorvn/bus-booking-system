@@ -5,6 +5,7 @@ option go_package = "booking-system/proto/booking/v1;bookingpb";
 
 service BookingService {
   rpc ConfirmBooking(ConfirmBookingRequest) returns (ConfirmBookingResponse);
+  rpc LockSeat(LockSeatRequest) returns (LockSeatResponse);
 }
 
 message ConfirmBookingRequest {
@@ -22,4 +23,12 @@ message ConfirmBookingResponse {
   string status = 3;
 }
 
+message LockSeatRequest {
+  string bus_id = 1;
+  string temp_user_id = 2;
+  repeated string seat_codes = 3;
+}
 
+message LockSeatResponse {
+  bool success = 1;
+}

@@ -18,18 +18,15 @@ import (
 )
 
 type BookingHandler struct {
-	lockSeatUC    *lockseat.LockSeatUsecase
 	bookingClient bookingpb.BookingServiceClient
 	// paymentPublisher confirmbooking.PaymentEventPublisher
 }
 
 func NewBookingHandler(
-	lockSeatUC *lockseat.LockSeatUsecase,
 	bookingClient bookingpb.BookingServiceClient,
 	// paymentPublisher confirmbooking.PaymentEventPublisher,
 ) *BookingHandler {
 	return &BookingHandler{
-		lockSeatUC:    lockSeatUC,
 		bookingClient: bookingClient,
 		// paymentPublisher: paymentPublisher,
 	}
@@ -42,7 +39,11 @@ func (h *BookingHandler) LockSeat(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.lockSeatUC.Execute(c.Request.Context(), req)
+	resp, err := h.bookingClient.LockSeat(c.Request.Context(), &bookingpb.LockSeatRequest{
+		BusId:      req.BusID.String(),
+		TempUserId: req.TempUserID.String(),
+		SeatCodes:  req.SeatCodes,
+	})
 	if err != nil {
 		var appError *httpErrors.AppError
 		switch {

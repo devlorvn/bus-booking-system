@@ -8,6 +8,7 @@ import (
 	confirmbookingUC "booking-system/internal/booking/usecase/confirm_booking"
 	expirebookinguc "booking-system/internal/booking/usecase/expire_booking"
 	handlepaymentUC "booking-system/internal/booking/usecase/handle_payment"
+	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
 	"booking-system/pkg/kafka"
@@ -119,6 +120,12 @@ func main() {
 		expireBookingUsecase,
 	)
 
+	lockSeatUsecase := lockseatUC.New(
+		busProvider,
+		seatLockRepo,
+		wsPublisher,
+	)
+
 	// Initial payment consumer worker
 	kafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
 	defer kafkaReader.Close()
@@ -152,7 +159,7 @@ func main() {
 		log.Fatal("failed to listen: ", err)
 	}
 	grpcServer := grpc.NewServer()
-	bookingGrpcServer := bookinggrpc.NewBookingGRPCServer(confirmBookingUsecase)
+	bookingGrpcServer := bookinggrpc.NewBookingGRPCServer(confirmBookingUsecase, lockSeatUsecase)
 	bookingpb.RegisterBookingServiceServer(grpcServer, bookingGrpcServer)
 
 	// Register reflection for debuging

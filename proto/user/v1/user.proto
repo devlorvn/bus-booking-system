@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "booking-system/proto/user/v1;userpb";
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc GetUserByID(GetUserByIDRequest) returns (GetUserByIDResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc FindByPhone(FindByPhoneRequest) returns (FindByPhoneResponse);
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string phone_number = 4;
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  string phone_number = 3;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message GetUserByIDRequest {
+  string id = 1;
+}
+
+message GetUserByIDResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  User user = 1;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message FindByPhoneRequest {
+  string phone = 1;
+}
+
+message FindByPhoneResponse {
+  User user = 1;
+}
