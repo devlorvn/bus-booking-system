@@ -90,3 +90,53 @@ func (p *BusProvider) BookSeats(
 	})
 	return err
 }
+
+func (p *BusProvider) MarkBookedByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+	busID uuid.UUID,
+	count int,
+) error {
+	_, err := p.client.MarkBookedByBookingID(ctx, &buspb.MarkBookedByBookingIDRequest{
+		BookingId: bookingID.String(),
+		BusId:     busID.String(),
+		Count:     int32(count),
+	})
+	return err
+}
+
+func (p *BusProvider) ReleaseSeatsByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) error {
+	_, err := p.client.ReleaseSeatsByBookingID(ctx, &buspb.ReleaseSeatsByBookingIDRequest{
+		BookingId: bookingID.String(),
+	})
+	return err
+}
+
+func (p *BusProvider) GetSeatByBookingID(
+	ctx context.Context,
+	bookingID uuid.UUID,
+) ([]*busDomain.Seat, error) {
+	resp, err := p.client.GetSeatByBookingID(ctx, &buspb.GetSeatByBookingIDRequest{
+		BookingId: bookingID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	seats := make([]*busDomain.Seat, len(resp.Seats))
+	for i, s := range resp.Seats {
+		seatUUID, err := uuid.Parse(s.Id)
+		if err != nil {
+			return nil, err
+		}
+		seats[i] = &busDomain.Seat{
+			ID:       seatUUID,
+			BusID:    uuid.MustParse(s.BusId),
+			SeatCode: s.SeatCode,
+			Status:   s.Status,
+		}
+	}
+	return seats, nil
+}

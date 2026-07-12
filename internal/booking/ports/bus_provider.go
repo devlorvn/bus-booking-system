@@ -25,6 +25,23 @@ type BusProvider interface {
 		busID uuid.UUID,
 		codes []string,
 	) error
+
+	MarkBookedByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+		busID uuid.UUID,
+		seatCount int,
+	) error
+
+	ReleaseSeatsByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) error
+
+	GetSeatByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) ([]*busDomain.Seat, error)
 }
 
 type EventPublisher interface {

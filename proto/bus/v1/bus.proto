@@ -19,6 +19,12 @@ service BusService {
     returns (GetSeatsResponse);
   rpc DeleteBus(DeleteBusRequest) 
     returns (DeleteBusResponse);
+  rpc MarkBookedByBookingID(MarkBookedByBookingIDRequest)
+    returns (MarkBookedByBookingIDResponse);
+  rpc GetSeatByBookingID(GetSeatByBookingIDRequest)
+    returns (GetSeatByBookingIDResponse);
+  rpc ReleaseSeatsByBookingID(ReleaseSeatsByBookingIDRequest)
+    returns (ReleaseSeatsByBookingIDResponse);
 }
 
 message GetBusRequest {
@@ -90,5 +96,28 @@ message DeleteBusRequest {
   string bus_id = 1;
 }
 message DeleteBusResponse {
+  bool success = 1;
+}
+
+message MarkBookedByBookingIDRequest {
+  string booking_id = 1;
+  string bus_id = 2;
+  int32 count = 3;
+}
+message MarkBookedByBookingIDResponse {
+  bool success = 1;
+}
+
+message GetSeatByBookingIDRequest {
+  string booking_id = 1;
+}
+message GetSeatByBookingIDResponse {
+  repeated Seat seats = 1;
+}
+
+message ReleaseSeatsByBookingIDRequest {
+  string booking_id = 1;
+}
+message ReleaseSeatsByBookingIDResponse {
   bool success = 1;
 }

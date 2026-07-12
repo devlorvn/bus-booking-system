@@ -51,8 +51,6 @@ func main() {
 	bookingRepo := postgresRepository.NewBookingRepository(db)
 	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
 	userRepo := postgresRepository.NewUserRepository(db)
-	seatRepo := postgresRepository.NewSeatRepository(db)
-	busRepo := postgresRepository.NewBusRepository(db)
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	userPortAdapter := &provider.UserPortAdapter{Repo: userRepo}
@@ -101,8 +99,7 @@ func main() {
 	// Initial handle payment usecase
 	handlerPaymentUsecase := handlepaymentUC.New(
 		bookingRepoAdapter,
-		seatRepo,
-		busRepo,
+		busProvider,
 		bookingLockRepo,
 		wsPublisher,
 		txManager,
@@ -111,7 +108,7 @@ func main() {
 	// Initial expire booking usecase
 	expireBookingUsecase := expirebookinguc.New(
 		bookingRepoAdapter,
-		seatRepo,
+		busProvider,
 		txManager,
 	)
 

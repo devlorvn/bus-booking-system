@@ -173,3 +173,67 @@ func (s *BusGRPCServer) DeleteBus(ctx context.Context, req *buspb.DeleteBusReque
 	}
 	return &buspb.DeleteBusResponse{Success: true}, nil
 }
+
+func (s *BusGRPCServer) MarkBookedByBookingID(
+	ctx context.Context,
+	req *buspb.MarkBookedByBookingIDRequest,
+) (*buspb.MarkBookedByBookingIDResponse, error) {
+	bookingUUID, err := uuid.Parse(req.BookingId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid bus ID: %v", err)
+	}
+
+	busUUID, err := uuid.Parse(req.BusId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid bus ID: %v", err)
+	}
+	dtoReq := dto.MarkBookedRequest{
+		BookingID: bookingUUID,
+		BusID:     busUUID,
+		SeatCount: int(req.Count),
+	}
+	err = s.busUsecase.MarkBookedByBookingID(ctx, dtoReq)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to mark booked: %v", err)
+	}
+	return &buspb.MarkBookedByBookingIDResponse{Success: true}, nil
+}
+
+func (s *BusGRPCServer) ReleaseSeatsByBookingID(
+	ctx context.Context,
+	req *buspb.ReleaseSeatsByBookingIDRequest,
+) (*buspb.ReleaseSeatsByBookingIDResponse, error) {
+	bookingUUID, err := uuid.Parse(req.BookingId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid bus ID: %v", err)
+	}
+	err = s.seatUsecase.ReleaseSeatsByBookingID(ctx, bookingUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to release seats: %v", err)
+	}
+	return &buspb.ReleaseSeatsByBookingIDResponse{Success: true}, nil
+}
+
+func (s *BusGRPCServer) GetSeatByBookingID(
+	ctx context.Context,
+	req *buspb.GetSeatByBookingIDRequest,
+) (*buspb.GetSeatByBookingIDResponse, error) {
+	bookingUUID, err := uuid.Parse(req.BookingId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid bus ID: %v", err)
+	}
+	seats, err := s.seatUsecase.GetSeatByBookingID(ctx, bookingUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get seats: %v", err)
+	}
+	pbSeats := make([]*buspb.Seat, 0, len(seats))
+	for _, seat := range seats {
+		pbSeats = append(pbSeats, &buspb.Seat{
+			Id:       seat.ID.String(),
+			BusId:    seat.BusID.String(),
+			SeatCode: seat.SeatCode,
+			Status:   seat.Status,
+		})
+	}
+	return &buspb.GetSeatByBookingIDResponse{Seats: pbSeats}, nil
+}

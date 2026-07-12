@@ -23,4 +23,16 @@ type SeatRepository interface {
 		busID uuid.UUID,
 		codes []string,
 	) error
+	MarkBookedByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) error
+	GetSeatByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) ([]*domain.Seat, error)
+	ReleaseSeatsByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) error
 }

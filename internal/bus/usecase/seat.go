@@ -58,3 +58,15 @@ func (u *SeatUsecase) GetByBusAndCodes(ctx context.Context, busID uuid.UUID, cod
 func (u *SeatUsecase) BookSeats(ctx context.Context, busID uuid.UUID, codes []string) error {
 	return u.repo.BookSeats(ctx, busID, codes)
 }
+
+func (u *SeatUsecase) MarkBookedByBookingID(ctx context.Context, bookingID uuid.UUID, busID uuid.UUID, seatCount int) error {
+	return u.repo.MarkBookedByBookingID(ctx, bookingID)
+}
+
+func (u *SeatUsecase) GetSeatByBookingID(ctx context.Context, bookingID uuid.UUID) ([]*domain.Seat, error) {
+	return u.repo.GetSeatByBookingID(ctx, bookingID)
+}
+
+func (u *SeatUsecase) ReleaseSeatsByBookingID(ctx context.Context, bookingID uuid.UUID) error {
+	return u.repo.ReleaseSeatsByBookingID(ctx, bookingID)
+}

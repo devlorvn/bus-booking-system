@@ -13,8 +13,7 @@ import (
 
 type HandlePaymentSuccessUsecase struct {
 	bookingRepo    ports.BookingRepository
-	seatRepo       SeatRepository
-	busRepo        BusRepository
+	busProvider    ports.BusProvider
 	bookingLock    ports.BookingLockPort
 	eventPublisher ports.EventPublisher
 	tx             shared.Transaction
@@ -22,16 +21,14 @@ type HandlePaymentSuccessUsecase struct {
 
 func New(
 	bookingRepo ports.BookingRepository,
-	seatRepo SeatRepository,
-	busRepo BusRepository,
+	busProvider ports.BusProvider,
 	bookingLock ports.BookingLockPort,
 	eventPublisher ports.EventPublisher,
 	tx shared.Transaction,
 ) *HandlePaymentSuccessUsecase {
 	return &HandlePaymentSuccessUsecase{
 		bookingRepo:    bookingRepo,
-		seatRepo:       seatRepo,
-		busRepo:        busRepo,
+		busProvider:    busProvider,
 		bookingLock:    bookingLock,
 		eventPublisher: eventPublisher,
 		tx:             tx,
@@ -57,7 +54,7 @@ func (u *HandlePaymentSuccessUsecase) Success(
 			return nil
 		}
 
-		seats, err = u.seatRepo.GetSeatByBookingID(txCtx, bookingID)
+		seats, err = u.busProvider.GetSeatByBookingID(txCtx, bookingID)
 		if err != nil {
 			return err
 		}
@@ -68,11 +65,7 @@ func (u *HandlePaymentSuccessUsecase) Success(
 		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
 			return err
 		}
-		if err := u.seatRepo.MarkBookedByBookingID(txCtx, bookingID); err != nil {
-			return err
-		}
-
-		if err := u.busRepo.DecrementAvailableSeats(txCtx, booking.BusID, booking.TotalSeats); err != nil {
+		if err := u.busProvider.MarkBookedByBookingID(txCtx, bookingID, booking.BusID, booking.TotalSeats); err != nil {
 			return err
 		}
 
@@ -114,7 +107,7 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 			return nil
 		}
 
-		seats, err = u.seatRepo.GetSeatByBookingID(txCtx, bookingID)
+		seats, err = u.busProvider.GetSeatByBookingID(txCtx, bookingID)
 		if err != nil {
 			return err
 		}
@@ -126,7 +119,7 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 			return err
 		}
 
-		if err := u.seatRepo.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
+		if err := u.busProvider.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
 			return err
 		}
 

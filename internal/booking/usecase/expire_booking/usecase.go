@@ -16,18 +16,18 @@ type SeatRepository interface {
 
 type ExpireBookingUsecase struct {
 	bookingRepo ports.BookingRepository
-	seatRepo    SeatRepository
+	busProvider ports.BusProvider
 	tx          shared.Transaction
 }
 
 func New(
 	bookingRepo ports.BookingRepository,
-	seatRepo SeatRepository,
+	busProvider ports.BusProvider,
 	tx shared.Transaction,
 ) *ExpireBookingUsecase {
 	return &ExpireBookingUsecase{
 		bookingRepo: bookingRepo,
-		seatRepo:    seatRepo,
+		busProvider: busProvider,
 		tx:          tx,
 	}
 }
@@ -52,7 +52,7 @@ func (u *ExpireBookingUsecase) Execute(ctx context.Context, bookingID uuid.UUID)
 			return err
 		}
 
-		if err := u.seatRepo.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
+		if err := u.busProvider.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
 			return err
 		}
 

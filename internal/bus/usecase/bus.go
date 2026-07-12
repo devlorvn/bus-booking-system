@@ -150,3 +150,59 @@ func (u *BusUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 func (u *BusUsecase) List(ctx context.Context) ([]*domain.Bus, error) {
 	return u.repo.List(ctx)
 }
+
+func (u *BusUsecase) DecrementAvailableSeats(ctx context.Context, busID uuid.UUID, count int) error {
+	bus, err := u.repo.GetByID(ctx, busID)
+	if err != nil {
+		return err
+	}
+	if bus == nil {
+		return errors.New("Bus not found")
+	}
+	bus.AvailableSeats -= count
+	_, err = u.repo.Update(ctx, bus)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (u *BusUsecase) MarkBookedByBookingID(ctx context.Context, dto dto.MarkBookedRequest) error {
+	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+		bus, err := u.repo.GetByID(txCtx, dto.BusID)
+		if err != nil {
+			return err
+		}
+		if bus == nil {
+			return errors.New("Bus not found")
+		}
+		bus.AvailableSeats -= dto.SeatCount
+		_, err = u.repo.Update(txCtx, bus)
+		if err != nil {
+			return err
+		}
+
+		if err := u.seatUsecase.MarkBookedByBookingID(txCtx, dto.BookingID, dto.BusID, dto.SeatCount); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (u *BusUsecase) ReleaseSeatsByBookingID(ctx context.Context, bookingID uuid.UUID) error {
+	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+		if err := u.seatUsecase.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
