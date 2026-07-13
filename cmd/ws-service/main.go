@@ -1,0 +1,123 @@
+package main
+
+import (
+	"booking-system/configs"
+	"booking-system/internal/notification/ws"
+	"booking-system/pkg/redis"
+	"booking-system/pkg/shared/constants"
+	"booking-system/pkg/shared/events"
+	"booking-system/pkg/shared/middleware"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	cfg := configs.LoadConfig()
+
+	if cfg.Mode == "development" {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	hub := ws.NewHub()
+	redisClient := redis.NewClient(&cfg.Redis)
+	workerCtx, cancelWorkers := context.WithCancel(context.Background())
+	defer cancelWorkers()
+
+	var wg sync.WaitGroup
+
+	// init worker for broadcast message
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		hub.Run(workerCtx)
+	}()
+
+	// register pub/sub
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		pubsub := redisClient.Subscribe(workerCtx, constants.WsChanel)
+		defer pubsub.Close()
+
+		ch := pubsub.Channel()
+		log.Printf("Websocket service: Subcribe to channel %s", constants.WsChanel)
+
+		for {
+			select {
+			case <-workerCtx.Done():
+				log.Println("Websocket service: Worker stopped")
+				return
+			case msg, ok := <-ch:
+				if !ok {
+					log.Println("Websocket service: Channel closed")
+					return
+				}
+				var event events.KafkaWsEvent
+				if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
+					log.Printf("Websocket service: Failed to unmarshal event: %v", err)
+					continue
+				}
+				// hub.BroadcastMessage(event)
+
+				var data map[string]interface{}
+
+				if err := json.Unmarshal(event.Data, &data); err != nil {
+					log.Printf("Websocket service: Failed to unmarshal event data: %v", err)
+					continue
+				}
+
+				hub.Broadcast(event.BusID, ws.BroadcastMessage{
+					Event: constants.EventType(event.Event),
+					Data:  data,
+				})
+			}
+		}
+	}()
+
+	r := gin.Default()
+	r.Use(middleware.WsCorsMiddleware())
+
+	wsHandler := ws.NewHandler(hub)
+	r.GET("/ws/buses/:id", wsHandler.Handle)
+
+	srv := &http.Server{
+		Addr:    "8082",
+		Handler: r,
+	}
+
+	go func() {
+		log.Printf("Websocket service: Started at %s", srv.Addr)
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Websocket service: Failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	<-quit
+	log.Println("Websocket service: Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Websocket service: Server forced to shutdown: %v", err)
+	}
+
+	cancelWorkers()
+	wg.Wait()
+
+	log.Println("Websocket service: Server exited")
+}

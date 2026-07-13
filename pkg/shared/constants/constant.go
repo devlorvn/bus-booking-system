@@ -6,3 +6,5 @@ const (
 	BookingLockTTL                = 15 * time.Minute
 	BookingExpirationQueue string = "booking_expiration_queue"
 )
+
+const WsChanel = "ws:events"

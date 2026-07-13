@@ -26,6 +26,15 @@ dev-payment-service:
 dev-notification-service:
 	go run cmd/notification-service/main.go
 
+dev-ws-service:
+	go run cmd/ws-service/main.go
+
+dev-user-service:
+	go run cmd/user-service/main.go
+
+dev-all:
+	@make -j 7 dev-user-service dev-bus-service dev-booking-service dev-payment-service dev-notification-service dev-ws-service dev-api-gateway
+
 build:
 	go build -o bin/api cmd/api/main.go
 
