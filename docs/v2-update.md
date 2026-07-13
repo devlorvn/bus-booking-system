@@ -113,6 +113,64 @@ Thay thế bộ giả lập thanh toán (Fake Payment Processor) bằng tích h�
 
 ---
 
+## 4.5. Đảm Bảo Tính Nhất Quán Khi Thanh Toán Thất Bại (3 Phương Án)
+
+Khi một giao dịch thanh toán thất bại (`PaymentProcessedEvent` có status `FAILED`), hệ thống cần thực hiện 2 thao tác:
+1. Cập nhật trạng thái Booking thành `FAILED` (tại Booking Service).
+2. Giải phóng ghế đã khóa (tại Bus Service).
+
+Dưới đây là chi tiết thiết kế và hướng triển khai cho 3 phương án để xử lý đồng bộ/bất đồng bộ lỗi của một trong hai service này:
+
+### Phương Án 1: Manual Commit + Retry & DLQ (Giải pháp Khắc phục Nhanh)
+Phương án này giữ nguyên luồng điều phối đồng bộ (Booking Service gọi gRPC sang Bus Service) nhưng khắc phục lỗi mất dữ liệu do auto-commit của Kafka.
+
+1. **Nguyên lý hoạt động:**
+   - Tách cuộc gọi gRPC `busProvider.ReleaseSeatsByBookingID` ra khỏi block DB transaction `u.tx.Execute` của Booking Service để tránh giữ kết nối DB quá lâu.
+   - Chuyển cấu hình Kafka Reader sang **Manual Commit** (`CommitInterval: 0`).
+   - Chỉ commit offset Kafka khi và chỉ khi cả 2 bước (cập nhật DB Booking và gọi gRPC Bus Service thành công).
+   - Nếu gọi gRPC sang Bus Service thất bại (mạng lỗi, Bus Service sập), Booking Service sẽ không commit message, thực hiện retry với exponential backoff.
+   - Nếu sau $N$ lần retry vẫn lỗi, message sẽ được đưa vào **Dead Letter Queue (DLQ)** để giám sát và xử lý thủ công, tránh tắc nghẽn hàng đợi chính.
+
+2. **Yêu cầu Idempotency:**
+   - Hàm `ReleaseSeatsByBookingID` ở Bus Service và hàm cập nhật Booking ở Booking Service phải là idempotent (gọi nhiều lần với cùng 1 `booking_id` không gây ra lỗi hay sai lệch dữ liệu).
+
+---
+
+### Phương Án 2: Choreography-based Saga (Giải pháp Event-Driven Khuyên Dùng)
+Decouple (hủy bỏ liên kết trực tiếp) hoàn toàn giữa Booking Service và Bus Service thông qua Event Broker (Kafka).
+
+1. **Nguyên lý hoạt động:**
+   - **Booking Service** lắng nghe `PaymentProcessedEvent` (`status = FAILED`).
+   - Cập nhật trạng thái Booking cục bộ thành `FAILED` trong DB transaction của mình.
+   - Khi cập nhật DB thành công, publish một event mới tên là `BookingCancelledEvent` (chứa `booking_id`, `bus_id`, danh sách ghế) lên Kafka topic `booking-events`.
+   - **Bus Service** lắng nghe event `BookingCancelledEvent`. Khi nhận được event, nó tự thực hiện transaction giải phóng các ghế tương ứng trong DB của mình.
+   
+2. **Xử lý lỗi:**
+   - Nếu Bus Service bị sập, event `BookingCancelledEvent` vẫn nằm an toàn trên Kafka. Khi Bus Service khởi động lại, nó sẽ tiếp tục tiêu thụ event và giải phóng ghế. Không cần cơ chế retry phức tạp ở phía Booking Service.
+
+---
+
+### Phương Án 3: Transactional Outbox Pattern (Đảm bảo Tin cậy 100% Giao dịch Cục bộ)
+Giải pháp này giải quyết vấn đề: Booking Service cập nhật DB thành công nhưng bị sập ngay trước khi kịp gửi event hủy/gọi gRPC giải phóng ghế.
+
+1. **Nguyên lý hoạt động:**
+   - Thêm một bảng `outbox` vào DB của Booking Service:
+     ```sql
+     CREATE TABLE outbox (
+         id UUID PRIMARY KEY,
+         aggregate_type VARCHAR(255),
+         aggregate_id VARCHAR(255),
+         event_type VARCHAR(255),
+         payload JSONB,
+         status VARCHAR(50) DEFAULT 'PENDING',
+         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+     );
+     ```
+   - Trong DB transaction hủy Booking, ghi thêm một bản ghi vào bảng `outbox` mô tả hành động cần thực hiện (ví dụ: giải phóng ghế). Do dùng chung một DB transaction cục bộ, hai hành động này đảm bảo cùng thành công hoặc cùng thất bại.
+   - Một **Outbox Worker** chạy nền sẽ quét bảng `outbox` (hoặc dùng CDC/Debezium quét WAL log) tìm các event có `status = 'PENDING'`, thực hiện gọi gRPC sang Bus Service hoặc publish event tương ứng sang Kafka, sau đó cập nhật status thành `'PROCESSED'`.
+
+---
+
 ## 5. Bảng Phân Chia Công Việc Dự Kiến
 
 | Công việc | Vị trí thay đổi | Độ ưu tiên |
@@ -123,3 +181,5 @@ Thay thế bộ giả lập thanh toán (Fake Payment Processor) bằng tích h�
 | **5.2.2** Thay thế Redis Expire bằng ZSet Delay Queue | `pkg/redis`, `booking-service` | Critical |
 | **5.3.1** Tích hợp Stripe SDK vào Payment Service | `cmd/payment-service` | Medium |
 | **5.3.2** Viết Webhook API xử lý kết quả Stripe | `cmd/payment-service` | Medium |
+| **5.4.1** Triển khai cơ chế Đảm bảo Nhất quán (Manual Commit / Saga / Outbox) | `booking-service`, `bus-service` | High |
+
