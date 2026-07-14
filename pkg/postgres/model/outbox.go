@@ -12,6 +12,6 @@ type Outbox struct {
 	AggregateID   string    `gorm:"type:varchar(255);not null"`
 	EventType     string    `gorm:"type:varchar(255);not null"`
 	Payload       []byte    `gorm:"type:jsonb;not null"`
-	Status        string    `gorm:"type:varchar(50);not null;default:'PENDING'"`
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
+	Status        string    `gorm:"type:varchar(50);not null;default:'PENDING';index:idx_outbox_status_created"`
+	CreatedAt     time.Time `gorm:"autoCreateTime;index:idx_outbox_status_created"`
 }
