@@ -12,7 +12,7 @@ type KafkaWsPublisher struct {
 	writer *kafka.Writer
 }
 
-func NewKafkaWsPublisher(writer *kafka.Writer) *KafkaWsPublisher {
+func NewKafkaPublisher(writer *kafka.Writer) *KafkaWsPublisher {
 	return &KafkaWsPublisher{
 		writer: writer,
 	}

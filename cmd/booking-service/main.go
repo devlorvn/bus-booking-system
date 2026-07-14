@@ -96,7 +96,7 @@ func main() {
 	// ws event publisher
 	kafkaWsWriter := kafka.NewWriter(config.Kafka.Brokers, constants.NotificationTopic)
 	defer kafkaWsWriter.Close()
-	wsPublisher := events.NewKafkaWsPublisher(kafkaWsWriter)
+	wsPublisher := events.NewKafkaPublisher(kafkaWsWriter)
 
 	// Initial ConfirmBookingUsecase
 	confirmBookingUsecase := confirmbookingUC.New(
