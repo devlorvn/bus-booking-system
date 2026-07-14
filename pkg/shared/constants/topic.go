@@ -14,7 +14,8 @@ const (
 )
 
 const (
-	EventTypeSeatLocked   EventType = "seat_locked"
-	EventTypeSeatUnlocked EventType = "seat_unlocked"
-	EventBookingConfirmed           = "booking_confirmed"
+	EventTypeSeatLocked    EventType = "seat_locked"
+	EventTypeSeatUnlocked  EventType = "seat_unlocked"
+	EventBookingConfirmed            = "booking_confirmed"
+	EventTypeBookingFailed           = "booking_failed"
 )

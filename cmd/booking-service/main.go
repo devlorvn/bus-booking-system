@@ -124,6 +124,7 @@ func main() {
 	expireBookingUsecase := expirebookinguc.New(
 		bookingRepoAdapter,
 		busProvider,
+		wsPublisher,
 		txManager,
 	)
 

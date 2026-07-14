@@ -17,10 +17,10 @@ import (
 type PaymentWorker struct {
 	reader    *gkafka.Reader
 	dlqWriter *gkafka.Writer
-	handler   *handlepayment.HandlePaymentSuccessUsecase
+	handler   *handlepayment.HandlePaymentUsecase
 }
 
-func NewPaymentWorker(reader *gkafka.Reader, dlqWriter *gkafka.Writer, handler *handlepayment.HandlePaymentSuccessUsecase) *PaymentWorker {
+func NewPaymentWorker(reader *gkafka.Reader, dlqWriter *gkafka.Writer, handler *handlepayment.HandlePaymentUsecase) *PaymentWorker {
 	return &PaymentWorker{
 		reader:    reader,
 		dlqWriter: dlqWriter,

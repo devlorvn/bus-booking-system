@@ -4,6 +4,7 @@ import (
 	"context"
 
 	busDomain "booking-system/internal/bus/domain"
+	"booking-system/pkg/shared/events"
 
 	"github.com/google/uuid"
 )
@@ -33,11 +34,6 @@ type BusProvider interface {
 		seatCount int,
 	) error
 
-	ReleaseSeatsByBookingID(
-		ctx context.Context,
-		bookingID uuid.UUID,
-	) error
-
 	GetSeatByBookingID(
 		ctx context.Context,
 		bookingID uuid.UUID,
@@ -47,4 +43,5 @@ type BusProvider interface {
 type EventPublisher interface {
 	PublishSeatLocked(busID string, seatID string, seatCode string, tempUserID string) error
 	PublishSeatReleased(busID string, seatCode string) error
+	PublishBookingCancelled(ctx context.Context, event events.BookingCancelledEvent) error
 }

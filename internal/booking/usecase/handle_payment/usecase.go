@@ -5,13 +5,14 @@ import (
 	"booking-system/internal/booking/ports"
 	busDomain "booking-system/internal/bus/domain"
 	"booking-system/pkg/shared"
+	"booking-system/pkg/shared/events"
 	"context"
 	"log"
 
 	"github.com/google/uuid"
 )
 
-type HandlePaymentSuccessUsecase struct {
+type HandlePaymentUsecase struct {
 	bookingRepo    ports.BookingRepository
 	busProvider    ports.BusProvider
 	bookingLock    ports.BookingLockPort
@@ -25,8 +26,8 @@ func New(
 	bookingLock ports.BookingLockPort,
 	eventPublisher ports.EventPublisher,
 	tx shared.Transaction,
-) *HandlePaymentSuccessUsecase {
-	return &HandlePaymentSuccessUsecase{
+) *HandlePaymentUsecase {
+	return &HandlePaymentUsecase{
 		bookingRepo:    bookingRepo,
 		busProvider:    busProvider,
 		bookingLock:    bookingLock,
@@ -35,7 +36,7 @@ func New(
 	}
 }
 
-func (u *HandlePaymentSuccessUsecase) Success(
+func (u *HandlePaymentUsecase) Success(
 	ctx context.Context,
 	bookingID uuid.UUID,
 ) error {
@@ -88,7 +89,7 @@ func (u *HandlePaymentSuccessUsecase) Success(
 	return nil
 }
 
-func (u *HandlePaymentSuccessUsecase) Failed(
+func (u *HandlePaymentUsecase) Failed(
 	ctx context.Context,
 	bookingID uuid.UUID,
 ) error {
@@ -127,10 +128,6 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 	}
 
 	if shouldRelease {
-		if err := u.busProvider.ReleaseSeatsByBookingID(ctx, bookingID); err != nil {
-			return err
-		}
-
 		seatCodes := make([]string, len(seats))
 		for i, seat := range seats {
 			seatCodes[i] = seat.SeatCode
@@ -138,11 +135,14 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 
 		_ = u.bookingLock.Release(ctx, bookingID, seatCodes)
 
-		for _, seatCode := range seatCodes {
-			err := u.eventPublisher.PublishSeatReleased(booking.BusID.String(), seatCode)
-			if err != nil {
-				log.Printf("[HandlePayment Usecase] Error publishing seat_unlocked event: %v", err)
-			}
+		canclEvent := events.BookingCancelledEvent{
+			BookingID: bookingID,
+			BusID:     booking.BusID,
+			SeatCodes: seatCodes,
+		}
+
+		if err := u.eventPublisher.PublishBookingCancelled(ctx, canclEvent); err != nil {
+			log.Printf("[HandlePayment Usecase] Error publishing booking_cancelled event: %v", err)
 		}
 	}
 

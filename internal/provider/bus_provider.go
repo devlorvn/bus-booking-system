@@ -105,16 +105,6 @@ func (p *BusProvider) MarkBookedByBookingID(
 	return err
 }
 
-func (p *BusProvider) ReleaseSeatsByBookingID(
-	ctx context.Context,
-	bookingID uuid.UUID,
-) error {
-	_, err := p.client.ReleaseSeatsByBookingID(ctx, &buspb.ReleaseSeatsByBookingIDRequest{
-		BookingId: bookingID.String(),
-	})
-	return err
-}
-
 func (p *BusProvider) GetSeatByBookingID(
 	ctx context.Context,
 	bookingID uuid.UUID,
