@@ -6,8 +6,12 @@ import (
 	"booking-system/internal/booking/ports"
 	"booking-system/internal/booking/service"
 	userDomain "booking-system/internal/user/domain"
+	"booking-system/pkg/postgres/model"
 	"booking-system/pkg/shared"
+	"booking-system/pkg/shared/constants"
+	"booking-system/pkg/shared/events"
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
@@ -28,7 +32,7 @@ type ConfirmBookingUsecase struct {
 	busProvider     ports.BusProvider
 	pricingService  service.PricingService
 	tx              shared.Transaction
-	publisher       PaymentEventPublisher
+	outboxRepo      ports.OutboxRepository
 	bookingLockPort ports.BookingLockPort
 }
 
@@ -41,7 +45,7 @@ func New(
 	pricingService service.PricingService,
 	tx shared.Transaction,
 	bookingLockPort ports.BookingLockPort,
-	publisher PaymentEventPublisher,
+	outboxRepo ports.OutboxRepository,
 ) *ConfirmBookingUsecase {
 	return &ConfirmBookingUsecase{
 		bookingRepo:     bookingRepo,
@@ -50,7 +54,7 @@ func New(
 		seatLockPort:    seatLockPort,
 		pricingService:  pricingService,
 		tx:              tx,
-		publisher:       publisher,
+		outboxRepo:      outboxRepo,
 		busProvider:     busProvider,
 		bookingLockPort: bookingLockPort,
 	}
@@ -200,6 +204,29 @@ func (u *ConfirmBookingUsecase) Execute(
 		if err != nil {
 			return err
 		}
+
+		// Save BookingCreatedEvent to outbox table inside db transaction
+		eventMsg := events.BookingCreatedEvent{
+			BookingID: bookingID,
+		}
+		eventBytes, err := json.Marshal(eventMsg)
+		if err != nil {
+			return err
+		}
+
+		outboxRecord := &model.Outbox{
+			ID:            uuid.New(),
+			AggregateType: "booking",
+			AggregateID:   bookingID.String(),
+			EventType:     constants.EventTypeBookingCreated,
+			Payload:       eventBytes,
+			Status:        "PENDING",
+		}
+
+		if err := u.outboxRepo.Save(txCtx, outboxRecord); err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -214,14 +241,6 @@ func (u *ConfirmBookingUsecase) Execute(
 	)
 
 	u.bookingLockPort.Create(ctx, bookingID, req.SeatCodes)
-
-	err = u.publisher.PublishBookingCreated(
-		ctx,
-		bookingID,
-	)
-	if err != nil {
-		return nil, err
-	}
 
 	return &dto.ConfirmBookingResponse{
 		BookingID:   bookingID,

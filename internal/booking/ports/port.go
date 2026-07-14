@@ -2,6 +2,7 @@ package ports
 
 import (
 	bookingDomain "booking-system/internal/booking/domain"
+	"booking-system/pkg/postgres/model"
 	"context"
 
 	"github.com/google/uuid"
@@ -46,4 +47,8 @@ type BookingLockPort interface {
 		ctx context.Context,
 		tempUserID string,
 	) error
+}
+
+type OutboxRepository interface {
+	Save(ctx context.Context, outbox *model.Outbox) error
 }

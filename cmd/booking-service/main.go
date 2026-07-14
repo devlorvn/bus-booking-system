@@ -52,6 +52,7 @@ func main() {
 	// Initial repository and adapters
 	bookingRepo := postgresRepository.NewBookingRepository(db)
 	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
+	outboxRepo := postgresRepository.NewOutboxRepository(db)
 
 	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
@@ -96,7 +97,7 @@ func main() {
 	// ws event publisher
 	kafkaWsWriter := kafka.NewWriter(config.Kafka.Brokers, constants.NotificationTopic)
 	defer kafkaWsWriter.Close()
-	wsPublisher := events.NewKafkaPublisher(kafkaWsWriter)
+	kafkaPublisher := events.NewKafkaPublisher(kafkaWsWriter)
 
 	// Initial ConfirmBookingUsecase
 	confirmBookingUsecase := confirmbookingUC.New(
@@ -108,7 +109,7 @@ func main() {
 		pricingService,
 		txManager,
 		bookingLockRepo,
-		paymentPublisher,
+		outboxRepo,
 	)
 
 	// Initial handle payment usecase
@@ -116,7 +117,7 @@ func main() {
 		bookingRepoAdapter,
 		busProvider,
 		bookingLockRepo,
-		wsPublisher,
+		outboxRepo,
 		txManager,
 	)
 
@@ -124,21 +125,21 @@ func main() {
 	expireBookingUsecase := expirebookinguc.New(
 		bookingRepoAdapter,
 		busProvider,
-		wsPublisher,
+		outboxRepo,
 		txManager,
 	)
 
 	// Initial lock expiration worker
 	lockExpirationWorker := worker.NewLockExpirationWorker(
 		redisClient,
-		wsPublisher,
+		kafkaPublisher,
 		expireBookingUsecase,
 	)
 
 	lockSeatUsecase := lockseatUC.New(
 		busProvider,
 		seatLockRepo,
-		wsPublisher,
+		kafkaPublisher,
 	)
 
 	// Initial payment consumer worker
@@ -149,6 +150,14 @@ func main() {
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 
+	// Initial outbox worker
+	outboxWorker := worker.NewOutboxWorker(
+		outboxRepo,
+		paymentPublisher,
+		kafkaPublisher,
+		500*time.Millisecond,
+	)
+
 	// Running payment consumer worker
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -156,6 +165,17 @@ func main() {
 		defer wg.Done()
 		if err := paymentWorker.Start(workerCtx); err != nil {
 			log.Fatal("payment worker failed: ", err)
+		}
+	}()
+
+	// Running outbox worker
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := outboxWorker.Start(workerCtx); err != nil {
+			if err != context.Canceled {
+				log.Fatal("outbox worker failed: ", err)
+			}
 		}
 	}()
 
@@ -204,9 +224,11 @@ func main() {
 	case <-workerDone:
 		log.Println("Payment worker exited")
 		log.Println("Lock expiration worker exited")
+		log.Println("Outbox worker exited")
 	case <-time.After(5 * time.Second):
 		log.Println("Payment worker timeout")
 		log.Println("Lock expiration worker timeout")
+		log.Println("Outbox worker timeout")
 	}
 
 	log.Println("Booking gRPC server exited")

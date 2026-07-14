@@ -27,6 +27,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.Seat{},
 		&model.Booking{},
 		&model.BookingSeat{},
+		&model.Outbox{},
 	)
 	if err != nil {
 		return err
