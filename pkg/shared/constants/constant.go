@@ -8,3 +8,8 @@ const (
 )
 
 const WsChanel = "ws:events"
+
+const (
+	MaxKafkaEventRetry = 5
+	DelayRetry         = 1 * time.Second
+)

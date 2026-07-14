@@ -82,10 +82,15 @@ func main() {
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.NotificationTopic, 1, 1)
+	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentDLQTopic, 1, 1)
 
 	// Booking created publisher
 	kafkaWriter := kafka.NewWriter(config.Kafka.Brokers, constants.BookingTopic)
 	defer kafkaWriter.Close()
+
+	kafkaDLQWriter := kafka.NewWriter(config.Kafka.Brokers, constants.PaymentDLQTopic)
+	defer kafkaDLQWriter.Close()
+
 	paymentPublisher := events.NewKafkaPaymentPublisher(kafkaWriter)
 
 	// ws event publisher
@@ -139,7 +144,7 @@ func main() {
 	kafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
 	defer kafkaReader.Close()
 
-	paymentWorker := worker.NewPaymentWorker(kafkaReader, handlerPaymentUsecase)
+	paymentWorker := worker.NewPaymentWorker(kafkaReader, kafkaDLQWriter, handlerPaymentUsecase)
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 

@@ -119,10 +119,6 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 			return err
 		}
 
-		if err := u.busProvider.ReleaseSeatsByBookingID(txCtx, bookingID); err != nil {
-			return err
-		}
-
 		shouldRelease = true
 		return nil
 	})
@@ -131,6 +127,10 @@ func (u *HandlePaymentSuccessUsecase) Failed(
 	}
 
 	if shouldRelease {
+		if err := u.busProvider.ReleaseSeatsByBookingID(ctx, bookingID); err != nil {
+			return err
+		}
+
 		seatCodes := make([]string, len(seats))
 		for i, seat := range seats {
 			seatCodes[i] = seat.SeatCode

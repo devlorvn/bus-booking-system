@@ -5,6 +5,7 @@ type EventType string
 const (
 	BookingTopic                   = "booking-events"
 	PaymentTopic                   = "payment-events"
+	PaymentDLQTopic                = "payment-events-dlq"
 	NotificationTopic              = "booking-websocket-events"
 	PaymentServicePollGroup        = "payment-service-group"
 	BookingServicePollGroup        = "booking-service-group"

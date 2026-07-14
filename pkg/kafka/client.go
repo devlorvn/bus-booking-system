@@ -24,7 +24,7 @@ func NewReader(brokers []string, topic string, groupID string) *gkafka.Reader {
 		GroupID:        groupID,
 		MinBytes:       10e3,              // wait for 10kb messages
 		MaxBytes:       10e6,              // limit the max size of the batch messages
-		CommitInterval: time.Second,       // auto commit offset after 1 second
+		CommitInterval: 0,                 // manual commit offset
 		StartOffset:    gkafka.LastOffset, // read the new message only
 	})
 }
