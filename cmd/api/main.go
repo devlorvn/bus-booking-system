@@ -56,6 +56,11 @@ func main() {
 
 	r := gin.Default()
 
+	// Register health check endpoint for Kubernetes
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "UP"})
+	})
+
 	api := r.Group("/api")
 
 	r.Static("/ui", "./web")

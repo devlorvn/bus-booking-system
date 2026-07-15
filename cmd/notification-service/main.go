@@ -21,7 +21,7 @@ func main() {
 	workerCtx, cancelWorkers := context.WithCancel(context.Background())
 	defer cancelWorkers()
 
-	// inital kafka reader for notification topic
+	// Initial kafka reader for notification topic
 	kafkaReader := kafka.NewReader(
 		cfg.Kafka.Brokers,
 		constants.NotificationTopic,

@@ -15,6 +15,8 @@ import (
 	"syscall"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -36,6 +38,13 @@ func main() {
 		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 	}
 	grpcServer := grpc.NewServer()
+
+	// Register health check service
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	// SetServingStatus is not thread-safe. SetServingStatusBlocking should be used for initialization.
+	healthServer.SetServingStatus("user.v1.UserService", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	userGrpcServer := usergrpc.NewUserGRPCServer(userUsecase)
 	userpb.RegisterUserServiceServer(grpcServer, userGrpcServer)
 

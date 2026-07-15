@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -79,6 +81,13 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
+
+	// Register health check service
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	// SetServingStatus is not thread-safe. SetServingStatusBlocking should be used for initialization.
+	healthServer.SetServingStatus("bus.v1.BusService", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	busGrpcServer := busgrpc.NewBusGRPCServer(busUsecase, seatUsecase)
 	buspb.RegisterBusServiceServer(grpcServer, busGrpcServer)
 
