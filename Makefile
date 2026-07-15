@@ -43,3 +43,6 @@ seed:
 
 gen-proto:
 	go run scripts/gen_proto.go
+
+deploy-local:
+	act -e deployment/local/event.json --secret-file deployment/local/.secret
