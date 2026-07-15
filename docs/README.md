@@ -53,7 +53,8 @@ This project is built for learning and practicing:
 | Redis | Locking, caching, pub/sub |
 | WebSocket | Realtime seat updates |
 | gRPC | Internal service communication |
-| Kafka | Async event streaming |
+| Kafka | Async event streaming & DLQ |
+| log/slog | JSON structured logging |
 | Docker | Local infrastructure |
 | HTML + Vanilla JS | Simple frontend for testing |
 
@@ -69,34 +70,35 @@ This project is built for learning and practicing:
                                     |
                                     v
                          +----------+----------+
-                         | API Gateway / Gin   |
+                         | API Gateway / Gin   | <--- HTTP Health (/health)
                          +----------+----------+
                                     |
                 +-------------------+-------------------+
-                |                                       |
+                | (gRPC)                                | (gRPC)
                 v                                       v
         +-------+--------+                     +--------+-------+
         | Booking Service|<----gRPC---------->| Bus Service    |
+        | - Health Check |                     | - Health Check |
         +-------+--------+                     +--------+-------+
-                |
-                |
-        +-------+--------+
-        | Redis           |
-        | - Locks         |
-        | - Cache         |
-        | - Pub/Sub       |
-        +-------+--------+
-                |
-                v
-        +-------+--------+
-        | PostgreSQL      |
-        +----------------+
-
-                |
-                v
-        +----------------+
-        | Kafka Events   |
-        +----------------+
+            |        |
+            |        +-------------------+
+            v                            v
+    +-------+--------+           +-------+--------+
+    | Redis           |           | PostgreSQL     |
+    | - Locks         |           | - Outbox Table |
+    | - Cache         |           +-------+--------+
+    | - Pub/Sub       |                   |
+    +----------------+                    | (Atomic Write)
+                                          v
+                                  [Outbox Worker]
+                                          |
+                                          v (Publish Events)
+                                  +----------------+
+                                  | Kafka Brokers  |
+                                  | - booking.topic|
+                                  | - payment.topic|
+                                  | - payment.dlq  |
+                                  +----------------+
 ```
 
 ---
@@ -181,11 +183,57 @@ TTL: 5 minutes
 If payment not completed:
     ->
 Booking expired
-    ->
-Seat released
-    ->
-Realtime broadcast triggered
+    Seat released
+        ->
+    Realtime broadcast triggered
 ```
+
+---
+
+# 6. Transactional Outbox Pattern
+
+To prevent **Dual-Write** issues (where a DB write succeeds but publishing to Kafka fails or vice-versa), the system implements the **Transactional Outbox Pattern**:
+
+- **Atomic Transactions:** Domain actions (Confirming, Expiring, or Cancelling bookings) execute inside a PostgreSQL transaction. In the same transaction, a payload is written to the `outbox` table in a `PENDING` state.
+- **Outbox Worker:** A background runner polls the `outbox` table every `500ms`, retrieves pending events, publishes them to Kafka, and marks them as `PROCESSED`.
+- **Automatic Pruning:** An hourly background job runs within the worker to delete `PROCESSED` outbox events older than 24 hours, keeping database storage clean.
+
+---
+
+# 7. Saga Choreography Pattern
+
+For distributed transaction coordination, the system implements an **Event-Driven Saga Choreography**:
+
+- **Happy Path:**
+  1. Booking is created (`PENDING_PAYMENT`).
+  2. Booking Service writes the `booking.created` event to the Outbox.
+  3. Payment Service consumes the event and simulates processing.
+  4. Payment succeeds and emits `payment.processed` with status `SUCCESS`.
+  5. Booking Service consumes the success event and confirms the booking.
+- **Compensating Transaction (Payment Failure):**
+  - If the simulated payment fails, Payment Service emits `payment.processed` with status `FAILED`.
+  - Booking Service consumes the failed event and triggers a **compensating transaction**: cancels the booking and writes a `booking.cancelled` event to the Outbox.
+  - Bus Service consumes `booking.cancelled` and releases the seats back to `AVAILABLE`.
+
+---
+
+# 8. Reliable Consumer with Dead Letter Queue (DLQ)
+
+To guarantee resilient and fault-tolerant event processing:
+- **Manual Offset Commit:** Consumers fetch messages manually and only commit offsets once the message has been successfully handled.
+- **Exponential Backoff:** If event consumption fails due to transient errors, the consumer retries with an exponential backoff delay (`constants.DelayRetry` doubled each time).
+- **Dead Letter Queue (DLQ):** If processing fails after exceeding the maximum retry limit (`MaxKafkaEventRetry`), the message is published to `payment.dlq` with detailed headers (error reason, attempt count, failed timestamp) to prevent blocking the partition.
+
+---
+
+# 9. Production-Grade Optimizations
+
+To prepare the application for real production deployments, the following enterprise features were added:
+- **Structured JSON Logging:** Switched all standard print/log statements to Go's built-in `log/slog` structured logging, outputting log statements in JSON format for easy ingestion by ELK, Loki, or CloudWatch.
+- **Database Connection Pooling:** Configured GORM connection pool parameters (`SetMaxIdleConns(10)`, `SetMaxOpenConns(100)`, and `SetConnMaxLifetime(time.Hour)`) to avoid exhausting database connections.
+- **Health Probes:**
+  - Registered official gRPC Health Checking Protocol (`grpc_health_v1`) on all gRPC servers (Booking, Bus, and User services).
+  - Exposed a REST `/health` endpoint on the API Gateway for Kubernetes/load balancer readiness and liveness checks.
 
 ---
 
@@ -597,10 +645,8 @@ One of the main learning goals of this project is handling concurrent booking sa
 
 ## Future Improvements
 
-- Outbox Pattern
-- Saga Pattern
-- Distributed tracing
-- Prometheus + Grafana
+- Distributed tracing (OpenTelemetry)
+- Prometheus + Grafana metrics
 - Rate limiting
 - Authentication & Authorization
 - Payment gateway integration
