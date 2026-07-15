@@ -4,6 +4,7 @@ import (
 	"booking-system/configs"
 	"booking-system/pkg/postgres/model"
 	"fmt"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -16,7 +17,18 @@ func NewPostgres(cfg *configs.Database) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sqlDb, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("Error connecting to Postgres: %v", err)
+	}
+
+	sqlDb.SetMaxIdleConns(10)           // Keep max 10 connections alive in pool
+	sqlDb.SetMaxOpenConns(100)          // Max open connections is 100
+	sqlDb.SetConnMaxLifetime(time.Hour) // Max lifetime of a connection is 1 hour
+
 	fmt.Println("Connected to Postgres successfully")
+
 	return db, nil
 }
 
