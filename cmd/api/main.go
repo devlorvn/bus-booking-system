@@ -10,7 +10,7 @@ import (
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +24,8 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	cfg := configs.LoadConfig()
 
 	if cfg.Mode == "development" {
@@ -71,9 +73,9 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Starting server on port %s", cfg.Port)
+		slog.Info("Starting server on port", slog.String("port", cfg.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			slog.Error("Server failed to start", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -81,16 +83,16 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server gracefully...")
+	slog.Info("Shutting down server gracefully...")
 
 	// 1. Shutdown HTTP server first, allowing 5 seconds to finish active requests
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server Shutdown failed: %v", err)
+		slog.Error("HTTP server Shutdown failed", slog.String("error", err.Error()))
 	} else {
-		log.Println("HTTP server shut down successfully")
+		slog.Info("HTTP server shut down successfully")
 	}
 
 	// Wait for all background workers to stop (with a timeout of 5 seconds)
@@ -102,16 +104,16 @@ func main() {
 
 	select {
 	case <-workersDone:
-		log.Println("All background workers stopped successfully")
+		slog.Info("All background workers stopped successfully")
 	case <-time.After(5 * time.Second):
-		log.Println("Timeout waiting for background workers to stop")
+		slog.Error("Timeout waiting for background workers to stop")
 	}
 
 	if err := redisClient.Close(); err != nil {
-		log.Printf("Error closing Redis client: %v", err)
+		slog.Error("Error closing Redis client", slog.String("error", err.Error()))
 	} else {
-		log.Println("Redis client closed successfully")
+		slog.Info("Redis client closed successfully")
 	}
 
-	log.Println("Server exiting")
+	slog.Info("Server exiting")
 }

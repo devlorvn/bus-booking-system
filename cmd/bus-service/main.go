@@ -13,7 +13,7 @@ import (
 	"booking-system/pkg/shared/constants"
 	buspb "booking-system/proto/bus/v1"
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -26,11 +26,12 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	config := configs.LoadConfig()
 	// initial database
 	db, err := postgres.NewPostgres(&config.Database)
 	if err != nil {
-		log.Fatal("failed to connect database: ", err)
+		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
 	}
 	txManager := database.NewTransaction(db)
 
@@ -67,14 +68,14 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := bookingFailedWorker.Start(workerCtx); err != nil {
-			log.Fatal("booking cancelled worker failed: ", err)
+			slog.Error("booking cancelled worker failed: ", slog.String("error", err.Error()))
 		}
 	}()
 
 	// initial grpc server
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatal("failed to listen: ", err)
+		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 	}
 
 	grpcServer := grpc.NewServer()
@@ -85,10 +86,10 @@ func main() {
 	reflection.Register(grpcServer)
 
 	go func() {
-		log.Printf("grpc server started on port %s", lis.Addr().String())
+		slog.Info("grpc server started on port %s", slog.String("port", lis.Addr().String()))
 
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatal("failed to serve: ", err)
+			slog.Error("failed to serve: ", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -100,7 +101,7 @@ func main() {
 	// wait for signal
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
 	// close grpc server
 	grpcServer.GracefulStop()
@@ -118,9 +119,9 @@ func main() {
 
 	select {
 	case <-workerDone:
-		log.Println("Booking cancelled worker exited")
+		slog.Info("Booking cancelled worker exited")
 	case <-time.After(5 * time.Second):
-		log.Println("Booking cancelled worker timeout")
+		slog.Error("Booking cancelled worker timeout")
 	}
-	log.Println("Server exited")
+	slog.Info("Server exited")
 }

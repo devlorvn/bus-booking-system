@@ -5,7 +5,7 @@ import (
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -37,29 +37,29 @@ func (c *WsConsumer) Consume(ctx context.Context) error {
 		msg, err := c.reader.ReadMessage(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
-				log.Println("Context cancelled")
+				slog.Error("Context cancelled")
 				return ctx.Err()
 			}
-			log.Printf("Error reading message: %v", err)
+			slog.Error("Error reading message:", slog.String("error", err.Error()))
 			continue
 		}
 
-		log.Printf("[WsConsumer] Received Kafka message: Key=%s, Value=%s", string(msg.Key), string(msg.Value))
+		slog.Info("WsConsumer: Received Kafka message:", slog.String("key", string(msg.Key)), slog.String("value", string(msg.Value)))
 
 		if msg.Key == nil {
-			log.Println("Message has no key, skipping")
+			slog.Error("Message has no key, skipping")
 			continue
 		}
 		var event events.KafkaWsEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Printf("Error unmarshalling message: %v", err)
+			slog.Error("Error unmarshalling message:", slog.String("error", err.Error()))
 			continue
 		}
 		switch constants.EventType(event.Event) {
 		case constants.EventTypeSeatLocked:
 			var data map[string]interface{}
 			if err := json.Unmarshal(event.Data, &data); err != nil {
-				log.Printf("Error unmarshalling message: %v", err)
+				slog.Error("Error unmarshalling message:", slog.String("error", err.Error()))
 				continue
 			}
 			c.hub.Broadcast(event.BusID, BroadcastMessage{
@@ -69,7 +69,7 @@ func (c *WsConsumer) Consume(ctx context.Context) error {
 		case constants.EventTypeSeatUnlocked:
 			var data map[string]interface{}
 			if err := json.Unmarshal(event.Data, &data); err != nil {
-				log.Printf("Error unmarshalling message: %v", err)
+				slog.Error("Error unmarshalling message:", slog.String("error", err.Error()))
 				continue
 			}
 			c.hub.Broadcast(event.BusID, BroadcastMessage{

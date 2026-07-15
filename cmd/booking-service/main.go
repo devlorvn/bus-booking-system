@@ -21,7 +21,7 @@ import (
 	buspb "booking-system/proto/bus/v1"
 	userpb "booking-system/proto/user/v1"
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -35,12 +35,13 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	config := configs.LoadConfig()
 
 	// initial database
 	db, err := postgres.NewPostgres(&config.Database)
 	if err != nil {
-		log.Fatal("failed to connect database: ", err)
+		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
 	}
 
 	txManager := database.NewTransaction(db)
@@ -62,7 +63,7 @@ func main() {
 	// Connecting gRPC Bus Service (port 50051)
 	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatal("failed to connect to bus service: ", err)
+		slog.Error("failed to connect to bus service: ", slog.String("error", err.Error()))
 	}
 	defer busConn.Close()
 
@@ -72,7 +73,7 @@ func main() {
 	// Connecting gRPC User service (port 50053)
 	userConn, err := grpc.NewClient("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatal("failed to connect to user service: ", err)
+		slog.Error("failed to connect to user service: ", slog.String("error", err.Error()))
 	}
 	defer userConn.Close()
 
@@ -164,7 +165,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := paymentWorker.Start(workerCtx); err != nil {
-			log.Fatal("payment worker failed: ", err)
+			slog.Error("payment worker failed: ", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -174,7 +175,7 @@ func main() {
 		defer wg.Done()
 		if err := outboxWorker.Start(workerCtx); err != nil {
 			if err != context.Canceled {
-				log.Fatal("outbox worker failed: ", err)
+				slog.Error("outbox worker failed: ", slog.String("error", err.Error()))
 			}
 		}
 	}()
@@ -184,14 +185,14 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := lockExpirationWorker.Start(workerCtx); err != nil {
-			log.Fatal("lock expiration worker failed: ", err)
+			slog.Error("lock expiration worker failed: ", slog.String("error", err.Error()))
 		}
 	}()
 
 	// Running Booking gRPC server on port 50052
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
-		log.Fatal("failed to listen: ", err)
+		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 	}
 	grpcServer := grpc.NewServer()
 	bookingGrpcServer := bookinggrpc.NewBookingGRPCServer(confirmBookingUsecase, lockSeatUsecase)
@@ -200,9 +201,9 @@ func main() {
 	// Register reflection for debuging
 	reflection.Register(grpcServer)
 	go func() {
-		log.Printf("Booking gRPC server started on port %s", lis.Addr().String())
+		slog.Info("Booking gRPC server started on port %s", slog.String("port", lis.Addr().String()))
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatal("failed to serve: ", err)
+			slog.Error("failed to serve: ", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -210,7 +211,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down Booking gRPC server...")
+	slog.Info("Shutting down Booking gRPC server...")
 	grpcServer.GracefulStop()
 
 	cancelWorker()
@@ -222,14 +223,14 @@ func main() {
 
 	select {
 	case <-workerDone:
-		log.Println("Payment worker exited")
-		log.Println("Lock expiration worker exited")
-		log.Println("Outbox worker exited")
+		slog.Info("Payment worker exited")
+		slog.Info("Lock expiration worker exited")
+		slog.Info("Outbox worker exited")
 	case <-time.After(5 * time.Second):
-		log.Println("Payment worker timeout")
-		log.Println("Lock expiration worker timeout")
-		log.Println("Outbox worker timeout")
+		slog.Error("Payment worker timeout")
+		slog.Error("Lock expiration worker timeout")
+		slog.Error("Outbox worker timeout")
 	}
 
-	log.Println("Booking gRPC server exited")
+	slog.Info("Booking gRPC server exited")
 }

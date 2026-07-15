@@ -9,7 +9,7 @@ import (
 	"booking-system/pkg/shared/middleware"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +21,7 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	cfg := configs.LoadConfig()
 
 	if cfg.Mode == "development" {
@@ -52,21 +53,21 @@ func main() {
 		defer pubsub.Close()
 
 		ch := pubsub.Channel()
-		log.Printf("Websocket service: Subcribe to channel %s", constants.WsChanel)
+		slog.Info("Websocket service: Subcribe to channel %s", slog.String("channel", constants.WsChanel))
 
 		for {
 			select {
 			case <-workerCtx.Done():
-				log.Println("Websocket service: Worker stopped")
+				slog.Info("Websocket service: Worker stopped")
 				return
 			case msg, ok := <-ch:
 				if !ok {
-					log.Println("Websocket service: Channel closed")
+					slog.Error("Websocket service: Channel closed")
 					return
 				}
 				var event events.KafkaWsEvent
 				if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
-					log.Printf("Websocket service: Failed to unmarshal event: %v", err)
+					slog.Error("Websocket service: Failed to unmarshal event: %v", slog.String("error", err.Error()))
 					continue
 				}
 				// hub.BroadcastMessage(event)
@@ -74,7 +75,7 @@ func main() {
 				var data map[string]interface{}
 
 				if err := json.Unmarshal(event.Data, &data); err != nil {
-					log.Printf("Websocket service: Failed to unmarshal event data: %v", err)
+					slog.Error("Websocket service: Failed to unmarshal event data: %v", slog.String("error", err.Error()))
 					continue
 				}
 
@@ -98,10 +99,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Websocket service: Started at %s", srv.Addr)
+		slog.Info("Websocket service: Started at %s", slog.String("addr", srv.Addr))
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Websocket service: Failed to start server: %v", err)
+			slog.Error("Websocket service: Failed to start server: %v", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -109,15 +110,15 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	<-quit
-	log.Println("Websocket service: Shutting down server...")
+	slog.Info("Websocket service: Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Websocket service: Server forced to shutdown: %v", err)
+		slog.Error("Websocket service: Server forced to shutdown: %v", slog.String("error", err.Error()))
 	}
 
 	cancelWorkers()
 	wg.Wait()
 
-	log.Println("Websocket service: Server exited")
+	slog.Info("Websocket service: Server exited")
 }

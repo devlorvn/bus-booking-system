@@ -7,7 +7,7 @@ import (
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"math/rand/v2"
 	"os"
 	"os/signal"
@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	config := configs.LoadConfig()
 
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
@@ -33,21 +34,21 @@ func main() {
 	defer cancel()
 
 	go func() {
-		log.Printf("Payment service is started and listening on %s", constants.BookingTopic)
+		slog.Info("Payment service is started and listening on %s", slog.String("topic", constants.BookingTopic))
 		for {
 			msg, err := reader.ReadMessage(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
-					log.Println("Context cancelled")
+					slog.Error("Context cancelled")
 					return // Close loop if context closed
 				}
-				log.Printf("Payment service: Error reading message: %v", err)
+				slog.Error("Payment service: Error reading message: %v", slog.String("error", err.Error()))
 				continue
 			}
 
 			var event events.BookingCreatedEvent
 			if err := json.Unmarshal(msg.Value, &event); err != nil {
-				log.Printf("Payment service: Error unmarshalling message: %v", err)
+				slog.Error("Payment service: Error unmarshalling message: %v", slog.String("error", err.Error()))
 				continue
 			}
 
@@ -70,9 +71,9 @@ func main() {
 				Value: bytes,
 			})
 			if err != nil {
-				log.Printf("Payment Service: Failed to publish payment result: %v", err)
+				slog.Error("Payment Service: Failed to publish payment result: %v", slog.String("error", err.Error()))
 			} else {
-				log.Printf("Payment Service: Processed booking %s: Status %s", event.BookingID, status)
+				slog.Info("Payment Service: Processed booking %s: Status %s", slog.String("booking_id", event.BookingID.String()), slog.String("status", status))
 			}
 		}
 	}()
@@ -80,5 +81,5 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down payment service")
+	slog.Info("Shutting down payment service")
 }

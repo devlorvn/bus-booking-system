@@ -5,7 +5,7 @@ import (
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	gkafka "github.com/segmentio/kafka-go"
 )
@@ -28,24 +28,24 @@ func (w *BookingCancelledWorker) Start(ctx context.Context) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			log.Printf("[BookingCancelledWorker] Error fetching message: %v", err)
+			slog.Error("BookingCancelledWorker: Error fetching message:", slog.String("error", err.Error()))
 			continue
 		}
 
 		var event events.BookingCancelledEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Printf("[BookingCancelledWorker] Error unmarshalling message: %v", err)
+			slog.Error("BookingCancelledWorker: Error unmarshalling message:", slog.String("error", err.Error()))
 			w.reader.CommitMessages(ctx, msg)
 			continue
 		}
 
 		if err := w.usecase.ReleaseSeatsByBookingID(ctx, event.BookingID); err != nil {
-			log.Printf("[BookingCancelledWorker] Error releasing seats: %v", err)
+			slog.Error("BookingCancelledWorker: Error releasing seats:", slog.String("error", err.Error()))
 			continue
 		}
 
 		if err := w.reader.CommitMessages(ctx, msg); err != nil {
-			log.Printf("[BookingCancelledWorker] Error committing messages: %v", err)
+			slog.Error("BookingCancelledWorker: Error committing messages:", slog.String("error", err.Error()))
 			continue
 		}
 	}

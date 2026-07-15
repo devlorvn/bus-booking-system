@@ -1,7 +1,7 @@
 package kafka
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	gkafka "github.com/segmentio/kafka-go"
@@ -35,7 +35,7 @@ func CreateTopicIfNotExist(brokers []string, topic string, numPartitions int, re
 	}
 	conn, err := gkafka.Dial("tcp", brokers[0])
 	if err != nil {
-		log.Printf("Warning: Fail to dial Kafka broker: %v", err)
+		slog.Error("Warning: Fail to dial Kafka broker:", slog.String("error", err.Error()))
 		return
 	}
 	defer conn.Close()
@@ -46,9 +46,9 @@ func CreateTopicIfNotExist(brokers []string, topic string, numPartitions int, re
 		ReplicationFactor: replicationFactor,
 	})
 	if err != nil {
-		log.Printf("Warning: Fail to create topic: %v", err)
+		slog.Error("Warning: Fail to create topic:", slog.String("error", err.Error()))
 		return
 	}
 
-	log.Printf("Topic %s is created successfully", topic)
+	slog.Info("Topic %s is created successfully", slog.String("topic", topic))
 }

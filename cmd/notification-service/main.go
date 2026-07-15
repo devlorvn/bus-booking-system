@@ -6,7 +6,7 @@ import (
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,21 +30,21 @@ func main() {
 	defer kafkaReader.Close()
 
 	go func() {
-		log.Println("Notification service: Started")
+		slog.Info("Notification service: Started")
 		for {
 			msg, err := kafkaReader.ReadMessage(workerCtx)
 			if err != nil {
 				if workerCtx.Err() != nil {
 					return
 				}
-				log.Printf("Notification Service: Error reading Kafka message: %v", err)
+				slog.Error("Notification Service: Error reading Kafka message: %v", slog.String("error", err.Error()))
 				continue
 			}
-			log.Printf("Notification Service: Relaying event to Redis Pub/Sub: %s", string(msg.Value))
+			slog.Info("Notification Service: Relaying event to Redis Pub/Sub: %s", slog.String("msg", string(msg.Value)))
 
 			err = redisClient.Publish(workerCtx, constants.WsChanel, msg.Value).Err()
 			if err != nil {
-				log.Printf("Notification Service: Failed to publish to Redis: %v", err)
+				slog.Error("Notification Service: Failed to publish to Redis: %v", slog.String("error", err.Error()))
 				continue
 			}
 		}
@@ -54,5 +54,5 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server gracefully...")
+	slog.Info("Shutting down server gracefully...")
 }

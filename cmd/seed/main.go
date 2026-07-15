@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"booking-system/configs"
 	"booking-system/pkg/database/seed"
@@ -9,16 +10,17 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	cfg := configs.LoadConfig()
 	db, err := postgres.NewPostgres(&cfg.Database)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 
 	err = seed.SeedBusWithSeats(db)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 
-	log.Println("seed completed")
+	slog.Info("seed completed")
 }

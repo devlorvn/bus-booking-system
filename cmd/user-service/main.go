@@ -8,7 +8,7 @@ import (
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
 	userpb "booking-system/proto/user/v1"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -19,11 +19,12 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	cfg := configs.LoadConfig()
 
 	db, err := postgres.NewPostgres(&cfg.Database)
 	if err != nil {
-		log.Fatal("failed to connect database: ", err)
+		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
 	}
 	txManager := database.NewTransaction(db)
 
@@ -32,7 +33,7 @@ func main() {
 
 	lis, err := net.Listen("tcp", ":50053")
 	if err != nil {
-		log.Fatal("failed to listen: ", err)
+		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 	}
 	grpcServer := grpc.NewServer()
 	userGrpcServer := usergrpc.NewUserGRPCServer(userUsecase)
@@ -41,9 +42,9 @@ func main() {
 	reflection.Register(grpcServer)
 
 	go func() {
-		log.Printf("gRPC server started on port %s", lis.Addr().String())
+		slog.Info("gRPC server started on port %s", slog.String("port", lis.Addr().String()))
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatal("failed to serve: ", err)
+			slog.Error("failed to serve: ", slog.String("error", err.Error()))
 		}
 	}()
 	quit := make(chan os.Signal, 1)
@@ -51,6 +52,6 @@ func main() {
 	<-quit
 
 	grpcServer.GracefulStop()
-	log.Println("shutting down server")
+	slog.Info("shutting down server")
 
 }

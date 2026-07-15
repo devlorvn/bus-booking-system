@@ -6,7 +6,7 @@ import (
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"strconv"
 	"sync"
 	"time"
@@ -29,7 +29,7 @@ func NewPaymentWorker(reader *gkafka.Reader, dlqWriter *gkafka.Writer, handler *
 }
 
 func (w *PaymentWorker) Start(ctx context.Context) error {
-	log.Println("Payment worker started")
+	slog.Info("Payment worker started")
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -38,26 +38,26 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 		msg, err := w.reader.FetchMessage(ctx) // manual commit offset
 		if err != nil {
 			if ctx.Err() != nil {
-				log.Println("context cancelled")
+				slog.Error("context cancelled")
 				return ctx.Err()
 			}
-			log.Printf("Payment worker: Error fetching message: %v", err)
+			slog.Error("Payment worker: Error fetching message:", slog.String("error", err.Error()))
 			continue
 		}
 		if msg.Key == nil {
-			log.Println("Payment worker: message has no key, skipping")
+			slog.Error("Payment worker: message has no key, skipping")
 			_ = w.reader.CommitMessages(ctx, msg) // Next to new message
 			continue
 		}
 
 		var event events.PaymentProcessedEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Printf("Payment worker: error unmarshalling message: %v", err)
+			slog.Error("Payment worker: error unmarshalling message:", slog.String("error", err.Error()))
 			_ = w.reader.CommitMessages(ctx, msg) // Next to new message
 			continue
 		}
 
-		log.Printf("Payment worker: processing payment for booking %s: Status %s", event.BookingID, event.Status)
+		slog.Info("Payment worker: processing payment for booking:", slog.String("booking_id", event.BookingID.String()), slog.String("status", event.Status))
 		backoff := constants.DelayRetry
 		var processErr error
 
@@ -83,7 +83,7 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 		}
 
 		if processErr != nil {
-			log.Printf("Payment worker: error handling payment after %d attempts: %v", constants.MaxKafkaEventRetry, processErr)
+			slog.Error("Payment worker: error handling payment after %d attempts: %v", slog.Int("attempts", constants.MaxKafkaEventRetry), slog.String("error", processErr.Error()))
 			dlqMsg := gkafka.Message{
 				Key:   msg.Key,
 				Value: msg.Value,
@@ -94,13 +94,13 @@ func (w *PaymentWorker) Start(ctx context.Context) error {
 			}
 
 			if err := w.dlqWriter.WriteMessages(ctx, dlqMsg); err != nil {
-				log.Printf("Payment worker: error writing to DLQ: %v", err)
+				slog.Error("Payment worker: error writing to DLQ:", slog.String("error", err.Error()))
 				continue
 			}
 		}
 
 		if err := w.reader.CommitMessages(ctx, msg); err != nil {
-			log.Printf("Payment worker: error committing message: %v", err)
+			slog.Error("Payment worker: error committing message:", slog.String("error", err.Error()))
 			continue
 		}
 	}
