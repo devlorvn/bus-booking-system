@@ -4,6 +4,7 @@ import (
 	"booking-system/pkg/database"
 	"booking-system/pkg/postgres/model"
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -43,4 +44,10 @@ func (r *OutboxRepository) MarkProcessed(ctx context.Context, id uuid.UUID) erro
 		Model(&model.Outbox{}).
 		Where("id = ?", id).
 		Update("status", "PROCESSED").Error
+}
+
+func (r *OutboxRepository) DeleteProcessed(ctx context.Context, olderThan time.Time) error {
+	return r.db.WithContext(ctx).
+		Where("status = ? AND created_at < ?", "PROCESSED", olderThan).
+		Delete(&model.Outbox{}).Error
 }

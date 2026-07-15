@@ -36,7 +36,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	err := godotenv.Load()
-	if err != nil {
+	if err != nil && os.Getenv("APP_MODE") != "production" {
 		panic("Error loading .env file")
 	}
 

@@ -46,12 +46,17 @@ func (w *OutboxWorker) Start(ctx context.Context) error {
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
 
+	cleanupTicker := time.NewTicker(1 * time.Hour)
+	defer cleanupTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
 			w.processPendingEvents(ctx)
+		case <-cleanupTicker.C:
+			w.cleanupProcessedEvents(ctx)
 		}
 	}
 }
@@ -105,4 +110,14 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 			slog.Error("Outbox worker: mark processed err:", slog.String("error", err.Error()))
 		}
 	}
+}
+
+func (w *OutboxWorker) cleanupProcessedEvents(ctx context.Context) {
+	olderThan := time.Now().Add(-24 * time.Hour) // Keep processed events for 24 hours for troubleshooting
+	err := w.repo.DeleteProcessed(ctx, olderThan)
+	if err != nil {
+		slog.Error("Outbox worker: failed to cleanup processed events", slog.String("error", err.Error()))
+		return
+	}
+	slog.Info("Outbox worker: cleaned up processed events successfully")
 }
