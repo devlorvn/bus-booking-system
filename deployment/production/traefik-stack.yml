@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:latest
+    command:
+      - "--api.dashboard=true"                         # Kích hoạt Dashboard
+      - "--api.insecure=false"                         # Tắt chế độ insecure ở production để bảo mật
+      - "--providers.swarm=true"                       # Bật Swarm Provider cho Traefik v3
+      - "--providers.swarm.exposedByDefault=false"
+      - "--entrypoints.web.address=:80"               # Entrypoint HTTP (Port 80)
+      - "--entrypoints.websecure.address=:443"         # Entrypoint HTTPS (Port 443)
+      
+      # Tự động chuyển hướng từ HTTP (80) sang HTTPS (443)
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      
+      # Cấu hình Let's Encrypt (ACME) tự động cấp phát & gia hạn SSL
+      - "--certificatesresolvers.productionresolver.acme.tlschallenge=true"
+      # Lưu ý: Thay đổi email dưới đây thành email quản trị của em để Let's Encrypt gửi cảnh báo khi có vấn đề
+      - "--certificatesresolvers.productionresolver.acme.email=admin@yourdomain.com"
+      - "--certificatesresolvers.productionresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: ingress
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/letsencrypt              # Lưu trữ khoá SSL vĩnh viễn trên Host
+    networks:
+      - traefik-public
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager                       # Bắt buộc chạy trên Manager để đọc Docker Socket
+      labels:
+        - "traefik.enable=true"
+        # Thay đổi traefik.yourdomain.com thành tên miền trỏ về VPS thật của em
+        - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.yourdomain.com`)"
+        - "traefik.http.routers.traefik-dashboard.service=api@internal"
+        - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+        - "traefik.http.routers.traefik-dashboard.tls=true"
+        - "traefik.http.routers.traefik-dashboard.tls.certresolver=productionresolver"
+        
+        # Bảo mật trang Dashboard bằng Basic Authentication (User: admin, Pass: admin123 - Hãy tạo hash riêng bằng htpasswd)
+        # - "traefik.http.routers.traefik-dashboard.middlewares=auth"
+        # - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$6R8g6ZJd$$1uR.lT4HkWqQc6YV1j/C1."
+
+networks:
+  traefik-public:
+    external: true
+
+volumes:
+  traefik-certificates:

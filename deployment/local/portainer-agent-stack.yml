@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  agent:
+    image: portainer/agent:2.21.3
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks:
+      - agent_network
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.platform.os == linux]
+
+  portainer:
+    image: portainer/portainer-ce:2.21.3
+    command: -H tcp://tasks.agent:9001 --tlsskipverify
+    # ports: (Bỏ phần ports đi vì ta sẽ đi qua cổng 80 của Traefik)
+    volumes:
+      - portainer_data:/data
+    networks:
+      - agent_network
+      - traefik-public                          # Kết nối Portainer vào mạng của Traefik
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.portainer.rule=Host(`portainer.local`)" # Định tuyến tên miền portainer.local
+        - "traefik.http.routers.portainer.entrypoints=web"
+        - "traefik.http.routers.portainer.service=portainer-service"
+        - "traefik.http.services.portainer-service.loadbalancer.server.port=9000" # Port của Portainer bên trong container
+        - "traefik.swarm.network=traefik-public"  # Chỉ định mạng để Traefik tìm tới service
+
+networks:
+  agent_network:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true                              # Mạng overlay Traefik dùng chung
+
+volumes:
+  portainer_data:
