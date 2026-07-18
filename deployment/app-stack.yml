@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  # Databases & Message Brokers
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: bus_booking
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  redis:
+    image: redis:7
+    command: redis-server --notify-keyspace-events Ex
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:29092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  # Microservices
+  user-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-user-service:${TAG}
+    environment:
+      - APP_PORT=50053
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  bus-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-bus-service:${TAG}
+    environment:
+      - APP_PORT=50051
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  booking-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-booking-service:${TAG}
+    environment:
+      - APP_PORT=50052
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+      - BUS_SERVICE_ADDR=bus-service:50051
+      - USER_SERVICE_ADDR=user-service:50053
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  payment-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-payment-service:${TAG}
+    environment:
+      - APP_PORT=8083
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  notification-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-notification-service:${TAG}
+    environment:
+      - APP_PORT=8084
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+
+  ws-service:
+    image: ${DOCKER_REGISTRY}/bus-booking-ws-service:${TAG}
+    environment:
+      - APP_PORT=8082
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+    networks:
+      - app-network
+      - traefik-public
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.ws.rule=Host(`api.local`) && PathPrefix(`/ws`)"
+        - "traefik.http.routers.ws.entrypoints=web"
+        - "traefik.http.routers.ws.service=ws-service"
+        - "traefik.http.services.ws-service.loadbalancer.server.port=8082"
+        - "traefik.swarm.network=traefik-public"
+
+  api:
+    image: ${DOCKER_REGISTRY}/bus-booking-api:${TAG}
+    environment:
+      - APP_PORT=8080
+      - APP_MODE=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=bus_booking
+      - POSTGRES_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - BOOKING_LOCK_TTL=5
+      - BUS_SERVICE_ADDR=bus-service:50051
+      - BOOKING_SERVICE_ADDR=booking-service:50052
+    networks:
+      - app-network
+      - traefik-public
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.api.rule=Host(`api.local`)"
+        - "traefik.http.routers.api.entrypoints=web"
+        - "traefik.http.routers.api.service=api-service"
+        - "traefik.http.services.api-service.loadbalancer.server.port=8080"
+        - "traefik.swarm.network=traefik-public"
+
+networks:
+  app-network:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:

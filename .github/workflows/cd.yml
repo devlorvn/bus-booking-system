@@ -65,3 +65,25 @@ jobs:
         run: |
           docker image prune -af
           docker builder prune -af
+
+  deploy:
+    name: Deploy to Swarm Cluster
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Stack via SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "${{ secrets.MANAGER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          ssh-keyscan -H 192.168.220.128 >> ~/.ssh/known_hosts 2>/dev/null
+          
+          scp -i ~/.ssh/id_rsa ./deployment/app-stack.yml manager@192.168.220.128:/home/manager/app-stack.yml
+          
+          ssh -i ~/.ssh/id_rsa manager@192.168.220.128 "DOCKER_REGISTRY=${{ secrets.DOCKER_REGISTRY }} TAG=${{ github.ref_name }} docker stack deploy -c /home/manager/app-stack.yml bus-booking"
+          
+          rm -f ~/.ssh/id_rsa

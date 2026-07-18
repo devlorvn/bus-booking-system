@@ -31,7 +31,10 @@ type Config struct {
 	Database
 	Redis
 	Kafka
-	BookingLockTTL string
+	BookingLockTTL     string
+	BusServiceAddr     string
+	BookingServiceAddr string
+	UserServiceAddr    string
 }
 
 func LoadConfig() *Config {
@@ -62,7 +65,10 @@ func LoadConfig() *Config {
 		Kafka: Kafka{
 			Brokers: brokers,
 		},
-		BookingLockTTL: getEnv("BOOKING_LOCK_TTL"),
+		BookingLockTTL:     getEnv("BOOKING_LOCK_TTL"),
+		BusServiceAddr:     getEnvOrDefault("BUS_SERVICE_ADDR", "localhost:50051"),
+		BookingServiceAddr: getEnvOrDefault("BOOKING_SERVICE_ADDR", "localhost:50052"),
+		UserServiceAddr:    getEnvOrDefault("USER_SERVICE_ADDR", "localhost:50053"),
 	}
 }
 
@@ -70,6 +76,14 @@ func getEnv(key string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		panic(fmt.Sprintf("Environment variable %s not set", key))
+	}
+	return value
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
 	return value
 }

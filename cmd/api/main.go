@@ -38,7 +38,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	busConn, err := grpc.NewClient(cfg.BusServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +46,7 @@ func main() {
 
 	busGrpcClient := buspb.NewBusServiceClient(busConn)
 
-	bookingConn, err := grpc.NewClient("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	bookingConn, err := grpc.NewClient(cfg.BookingServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}

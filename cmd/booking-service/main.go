@@ -63,7 +63,7 @@ func main() {
 	pricingService := bookingService.NewPricingService()
 
 	// Connecting gRPC Bus Service (port 50051)
-	busConn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	busConn, err := grpc.NewClient(config.BusServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		slog.Error("failed to connect to bus service: ", slog.String("error", err.Error()))
 	}
@@ -73,7 +73,7 @@ func main() {
 	busProvider := provider.NewBusProvider(busGrpcClient) // connect to Bus Service via gRPC
 
 	// Connecting gRPC User service (port 50053)
-	userConn, err := grpc.NewClient("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	userConn, err := grpc.NewClient(config.UserServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		slog.Error("failed to connect to user service: ", slog.String("error", err.Error()))
 	}

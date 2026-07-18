@@ -94,7 +94,7 @@ func main() {
 	r.GET("/ws/buses/:id", wsHandler.Handle)
 
 	srv := &http.Server{
-		Addr:    "8082",
+		Addr:    ":8082",
 		Handler: r,
 	}
 
