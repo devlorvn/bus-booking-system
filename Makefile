@@ -45,4 +45,4 @@ gen-proto:
 	go run scripts/gen_proto.go
 
 deploy-local:
-	act -e deployment/local/event.json --secret-file deployment/local/.secret
+	act -W .github/workflows/cd-local.yml -e deployment/local/event.json --secret-file deployment/local/.secret --bind

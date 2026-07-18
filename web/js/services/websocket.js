@@ -1,4 +1,7 @@
-const WS_BASE = "ws://localhost:8082";
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const WS_BASE = window.location.protocol === "file:" 
+  ? "ws://localhost:8082" 
+  : `${protocol}//${window.location.host}`;
 
 window.WebSocketService = function () {
   return {

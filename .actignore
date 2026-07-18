@@ -1,0 +1,3 @@
+# act ignore file (forces act to copy ignored files like id_rsa and .secret into the runner container)
+.git/
+act.log

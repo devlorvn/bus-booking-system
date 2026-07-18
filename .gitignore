@@ -31,3 +31,7 @@ go.work.sum
 .idea/
 .vscode/
 .DS_Store
+
+# Local deployment secrets and SSH keys
+# deployment/local/.secret
+deployment/local/id_rsa
