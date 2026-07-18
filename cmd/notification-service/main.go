@@ -24,12 +24,12 @@ func main() {
 	defer cancelWorkers()
 
 	// Initial kafka reader for notification topic (transient seat locks)
-	// kafkaReader := kafka.NewReader(
-	// 	cfg.Kafka.Brokers,
-	// 	constants.NotificationTopic,
-	// 	constants.NotificationServicePollGroup,
-	// )
-	// defer kafkaReader.Close()
+	kafkaReader := kafka.NewReader(
+		cfg.Kafka.Brokers,
+		constants.NotificationTopic,
+		constants.NotificationServicePollGroup,
+	)
+	defer kafkaReader.Close()
 
 	// Initial kafka reader for booking events topic (business events)
 	bookingReader := kafka.NewReader(
@@ -40,26 +40,26 @@ func main() {
 	defer bookingReader.Close()
 
 	// Goroutine 1: Relay transient WS events
-	// go func() {
-	// 	slog.Info("Notification service: Relaying transient WS events")
-	// 	for {
-	// 		msg, err := kafkaReader.ReadMessage(workerCtx)
-	// 		if err != nil {
-	// 			if workerCtx.Err() != nil {
-	// 				return
-	// 			}
-	// 			slog.Error("Notification Service: Error reading transient WS event: %v", slog.String("error", err.Error()))
-	// 			continue
-	// 		}
-	// 		slog.Info("Notification Service: Relaying event to Redis Pub/Sub: %s", slog.String("msg", string(msg.Value)))
+	go func() {
+		slog.Info("Notification service: Relaying transient WS events")
+		for {
+			msg, err := kafkaReader.ReadMessage(workerCtx)
+			if err != nil {
+				if workerCtx.Err() != nil {
+					return
+				}
+				slog.Error("Notification Service: Error reading transient WS event: %v", slog.String("error", err.Error()))
+				continue
+			}
+			slog.Info("Notification Service: Relaying event to Redis Pub/Sub: %s", slog.String("msg", string(msg.Value)))
 
-	// 		err = redisClient.Publish(workerCtx, constants.WsChanel, msg.Value).Err()
-	// 		if err != nil {
-	// 			slog.Error("Notification Service: Failed to publish transient WS event to Redis: %v", slog.String("error", err.Error()))
-	// 			continue
-	// 		}
-	// 	}
-	// }()
+			err = redisClient.Publish(workerCtx, constants.WsChanel, msg.Value).Err()
+			if err != nil {
+				slog.Error("Notification Service: Failed to publish transient WS event to Redis: %v", slog.String("error", err.Error()))
+				continue
+			}
+		}
+	}()
 
 	// Goroutine 2: Relay business events (like booking_cancelled) to WS
 	go func() {
