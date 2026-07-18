@@ -24,8 +24,8 @@ func main() {
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)
 
-	reader := kafka.NewReader(config.Kafka.Brokers, constants.BookingTopic, constants.PaymentServicePollGroup)
-	defer reader.Close()
+	bookingKafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.BookingTopic, constants.PaymentServicePollGroup)
+	defer bookingKafkaReader.Close()
 
 	writer := kafka.NewWriter(config.Kafka.Brokers, constants.PaymentTopic)
 	defer writer.Close()
@@ -36,7 +36,7 @@ func main() {
 	go func() {
 		slog.Info("Payment service is started and listening on %s", slog.String("topic", constants.BookingTopic))
 		for {
-			msg, err := reader.ReadMessage(ctx)
+			msg, err := bookingKafkaReader.ReadMessage(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
 					slog.Error("Context cancelled")
@@ -46,7 +46,20 @@ func main() {
 				continue
 			}
 
-			var event events.BookingCreatedEvent
+			// Check event type header
+			eventType := ""
+			for _, h := range msg.Headers {
+				if h.Key == "event_type" {
+					eventType = string(h.Value)
+					break
+				}
+			}
+
+			if eventType != constants.EventTypeBookingPendingPayment {
+				continue
+			}
+
+			var event events.BookingPendingPaymentEvent
 			if err := json.Unmarshal(msg.Value, &event); err != nil {
 				slog.Error("Payment service: Error unmarshalling message: %v", slog.String("error", err.Error()))
 				continue

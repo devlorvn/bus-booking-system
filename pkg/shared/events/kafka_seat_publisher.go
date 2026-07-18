@@ -12,7 +12,7 @@ type KafkaWsPublisher struct {
 	writer *kafka.Writer
 }
 
-func NewKafkaPublisher(writer *kafka.Writer) *KafkaWsPublisher {
+func NewKafkaSeatPublisher(writer *kafka.Writer) *KafkaWsPublisher {
 	return &KafkaWsPublisher{
 		writer: writer,
 	}
@@ -59,27 +59,5 @@ func (p *KafkaWsPublisher) PublishSeatReleased(busId string, seatCode string) er
 	return p.writer.WriteMessages(context.Background(), kafka.Message{
 		Value: bytes,
 		Key:   []byte(busId),
-	})
-}
-
-func (p *KafkaWsPublisher) PublishBookingCancelled(ctx context.Context, event BookingCancelledEvent) error {
-	payload := map[string]interface{}{
-		"event":  constants.EventTypeBookingFailed,
-		"bus_id": event.BusID,
-		"data": map[string]interface{}{
-			"booking_id": event.BookingID,
-			"bus_id":     event.BusID,
-			"seat_codes": event.SeatCodes,
-		},
-	}
-
-	bytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	return p.writer.WriteMessages(context.Background(), kafka.Message{
-		Value: bytes,
-		Key:   []byte(event.BusID.String()),
 	})
 }

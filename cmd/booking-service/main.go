@@ -9,6 +9,7 @@ import (
 	expirebookinguc "booking-system/internal/booking/usecase/expire_booking"
 	handlepaymentUC "booking-system/internal/booking/usecase/handle_payment"
 	lockseatUC "booking-system/internal/booking/usecase/lock_seat"
+	processsagaresultUC "booking-system/internal/booking/usecase/process_saga_result"
 	"booking-system/internal/provider"
 	"booking-system/pkg/database"
 	"booking-system/pkg/kafka"
@@ -57,7 +58,6 @@ func main() {
 	bookingSeatRepo := postgresRepository.NewBookingSeatRepository(db)
 	outboxRepo := postgresRepository.NewOutboxRepository(db)
 
-	bookingRepoAdapter := &provider.BookingRepoAdapter{Repo: bookingRepo}
 	bookingLockRepo := redis.NewLockBookingRepository(redisClient)
 	seatLockRepo := redis.NewLockSeatRepository(redisClient)
 	pricingService := bookingService.NewPricingService()
@@ -95,16 +95,15 @@ func main() {
 	kafkaDLQWriter := kafka.NewWriter(config.Kafka.Brokers, constants.PaymentDLQTopic)
 	defer kafkaDLQWriter.Close()
 
-	paymentPublisher := events.NewKafkaPaymentPublisher(kafkaWriter)
+	bookingPublisher := events.NewKafkaBookingPublisher(kafkaWriter)
 
-	// ws event publisher
 	kafkaWsWriter := kafka.NewWriter(config.Kafka.Brokers, constants.NotificationTopic)
 	defer kafkaWsWriter.Close()
-	kafkaPublisher := events.NewKafkaPublisher(kafkaWsWriter)
+	seatPublisher := events.NewKafkaSeatPublisher(kafkaWsWriter)
 
 	// Initial ConfirmBookingUsecase
 	confirmBookingUsecase := confirmbookingUC.New(
-		bookingRepoAdapter,
+		bookingRepo,
 		bookingSeatRepo,
 		userProvider,
 		seatLockRepo,
@@ -117,7 +116,7 @@ func main() {
 
 	// Initial handle payment usecase
 	handlerPaymentUsecase := handlepaymentUC.New(
-		bookingRepoAdapter,
+		bookingRepo,
 		bookingSeatRepo,
 		busProvider,
 		bookingLockRepo,
@@ -127,9 +126,23 @@ func main() {
 
 	// Initial expire booking usecase
 	expireBookingUsecase := expirebookinguc.New(
-		bookingRepoAdapter,
+		bookingRepo,
 		bookingSeatRepo,
 		busProvider,
+		outboxRepo,
+		txManager,
+	)
+
+	lockSeatUsecase := lockseatUC.New(
+		busProvider,
+		seatLockRepo,
+		seatPublisher,
+	)
+
+	// Initial process saga result usecase
+	processSagaResultUsecase := processsagaresultUC.New(
+		bookingRepo,
+		bookingLockRepo,
 		outboxRepo,
 		txManager,
 	)
@@ -137,29 +150,28 @@ func main() {
 	// Initial lock expiration worker
 	lockExpirationWorker := worker.NewLockExpirationWorker(
 		redisClient,
-		kafkaPublisher,
+		seatPublisher,
 		expireBookingUsecase,
 	)
 
-	lockSeatUsecase := lockseatUC.New(
-		busProvider,
-		seatLockRepo,
-		kafkaPublisher,
-	)
-
 	// Initial payment consumer worker
-	kafkaReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
-	defer kafkaReader.Close()
+	paymentReader := kafka.NewReader(config.Kafka.Brokers, constants.PaymentTopic, constants.BookingServicePollGroup)
+	defer paymentReader.Close()
 
-	paymentWorker := worker.NewPaymentWorker(kafkaReader, kafkaDLQWriter, handlerPaymentUsecase)
+	paymentWorker := worker.NewPaymentWorker(paymentReader, kafkaDLQWriter, handlerPaymentUsecase)
+
+	sagaResultReader := kafka.NewReader(config.Kafka.Brokers, constants.BookingTopic, "booking-service-saga-result-group")
+	defer sagaResultReader.Close()
+
+	sagaResultWorker := worker.NewSagaResultWorker(sagaResultReader, processSagaResultUsecase)
+
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 
 	// Initial outbox worker
 	outboxWorker := worker.NewOutboxWorker(
 		outboxRepo,
-		paymentPublisher,
-		kafkaPublisher,
+		bookingPublisher,
 		500*time.Millisecond,
 	)
 
@@ -190,6 +202,15 @@ func main() {
 		defer wg.Done()
 		if err := lockExpirationWorker.Start(workerCtx); err != nil {
 			slog.Error("lock expiration worker failed: ", slog.String("error", err.Error()))
+		}
+	}()
+
+	// Running saga result worker
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := sagaResultWorker.Start(workerCtx); err != nil {
+			slog.Error("saga result worker failed: ", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -237,10 +258,9 @@ func main() {
 		slog.Info("Payment worker exited")
 		slog.Info("Lock expiration worker exited")
 		slog.Info("Outbox worker exited")
+		slog.Info("Saga result worker exited")
 	case <-time.After(5 * time.Second):
-		slog.Error("Payment worker timeout")
-		slog.Error("Lock expiration worker timeout")
-		slog.Error("Outbox worker timeout")
+		slog.Error("Workers timeout during exit")
 	}
 
 	slog.Info("Booking gRPC server exited")

@@ -52,15 +52,20 @@ func main() {
 	seatUsecase := usecase.NewSeatUsecase(seatRepo, txManager)
 	busUsecase := usecase.NewBusUsecase(busRepo, seatUsecase, seatLockRepo, txManager)
 
-	// initial booking failed worker
-	kafkaReader := kafka.NewReader(
-		config.Brokers,
-		constants.BookingTopic,
-		constants.BookingServicePollGroup,
-	)
-	defer kafkaReader.Close()
+	// initial kafka publishers/consumers
+	kafkaWriter := kafka.NewWriter(config.Kafka.Brokers, constants.BookingTopic)
+	defer kafkaWriter.Close()
 
-	bookingFailedWorker := worker.NewBookingCancelledWorker(kafkaReader, seatUsecase)
+	// initial booking events worker
+	bookingReader := kafka.NewReader(
+		config.Kafka.Brokers,
+		constants.BookingTopic,
+		constants.BusServicePollGroup,
+	)
+	defer bookingReader.Close()
+
+	bookingWorker := worker.NewBookingWorker(bookingReader, kafkaWriter, seatUsecase)
+
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 
@@ -69,8 +74,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := bookingFailedWorker.Start(workerCtx); err != nil {
-			slog.Error("booking cancelled worker failed: ", slog.String("error", err.Error()))
+		if err := bookingWorker.Start(workerCtx); err != nil {
+			slog.Error("booking worker failed: ", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -128,9 +133,9 @@ func main() {
 
 	select {
 	case <-workerDone:
-		slog.Info("Booking cancelled worker exited")
+		slog.Info("Booking worker exited")
 	case <-time.After(5 * time.Second):
-		slog.Error("Booking cancelled worker timeout")
+		slog.Error("Worker timeout during exit")
 	}
 	slog.Info("Server exited")
 }

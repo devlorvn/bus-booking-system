@@ -165,13 +165,13 @@ func (u *ConfirmBookingUsecase) Execute(
 			ID:            bookingID,
 			BusID:         req.BusID,
 			UserID:        user.ID,
-			Status:        "PENDING_PAYMENT",
+			Status:        "PENDING_CONFIRMATION",
 			PaymentStatus: "PENDING",
 			TotalSeats:    len(req.SeatCodes),
 			TotalAmount:   totalAmount,
 		}
 
-		if err := u.bookingRepo.Create(txCtx, booking); err != nil {
+		if _, err := u.bookingRepo.Create(txCtx, booking); err != nil {
 			return err
 		}
 		items := make(
@@ -198,6 +198,8 @@ func (u *ConfirmBookingUsecase) Execute(
 		// Save BookingCreatedEvent to outbox table inside db transaction
 		eventMsg := events.BookingCreatedEvent{
 			BookingID: bookingID,
+			BusID:     req.BusID,
+			SeatCodes: req.SeatCodes,
 		}
 		eventBytes, err := json.Marshal(eventMsg)
 		if err != nil {
@@ -223,18 +225,6 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, err
 	}
 
-	err = u.busProvider.BookSeats(
-		ctx,
-		req.BusID,
-		req.SeatCodes,
-	)
-	if err != nil {
-		if err.Error() == "SOME_SEATS_ALREADY_BOOKED" {
-			return nil, ErrSeatAlreadyBooked
-		}
-		return nil, err
-	}
-
 	u.seatLockPort.ReleaseSeatLocks(
 		ctx,
 		req.BusID,
@@ -246,7 +236,7 @@ func (u *ConfirmBookingUsecase) Execute(
 
 	return &dto.ConfirmBookingResponse{
 		BookingID:   bookingID,
-		Status:      "PENDING_PAYMENT",
+		Status:      "PENDING_CONFIRMATION",
 		TotalAmount: totalAmount,
 	}, nil
 }

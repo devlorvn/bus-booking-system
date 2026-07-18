@@ -12,7 +12,7 @@ type BookingRepository interface {
 	Create(
 		ctx context.Context,
 		booking *bookingDomain.Booking,
-	) error
+	) (*bookingDomain.Booking, error)
 
 	GetByID(
 		ctx context.Context,
@@ -22,7 +22,7 @@ type BookingRepository interface {
 	Update(
 		ctx context.Context,
 		booking *bookingDomain.Booking,
-	) error
+	) (*bookingDomain.Booking, error)
 }
 
 type BookingLockPort interface {

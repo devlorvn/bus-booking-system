@@ -65,7 +65,7 @@ func (u *ExpireBookingUsecase) Execute(ctx context.Context, bookingID uuid.UUID)
 		booking.Status = "EXPIRED"
 		booking.PaymentStatus = "FAILED"
 
-		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
+		if _, err := u.bookingRepo.Update(txCtx, booking); err != nil {
 			return err
 		}
 

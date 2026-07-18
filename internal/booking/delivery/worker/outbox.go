@@ -8,36 +8,29 @@ import (
 	"encoding/json"
 	"log/slog"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-type BookingPublisher interface {
-	PublishBookingCreated(ctx context.Context, bookingID uuid.UUID) error
-}
-
-type KafkaPublisher interface {
+type EventPublisher interface {
+	PublishBookingCreated(ctx context.Context, event events.BookingCreatedEvent) error
 	PublishBookingCancelled(ctx context.Context, event events.BookingCancelledEvent) error
+	PublishBookingPendingPayment(ctx context.Context, event events.BookingPendingPaymentEvent) error
 }
 
 type OutboxWorker struct {
-	repo             *repository.OutboxRepository
-	bookingPublisher BookingPublisher
-	kafkaPublisher   KafkaPublisher
-	pollInterval     time.Duration
+	repo         *repository.OutboxRepository
+	publisher    EventPublisher
+	pollInterval time.Duration
 }
 
 func NewOutboxWorker(
 	repo *repository.OutboxRepository,
-	bookingPublisher BookingPublisher,
-	kafkaPublisher KafkaPublisher,
+	publisher EventPublisher,
 	pollInterval time.Duration,
 ) *OutboxWorker {
 	return &OutboxWorker{
-		repo:             repo,
-		bookingPublisher: bookingPublisher,
-		kafkaPublisher:   kafkaPublisher,
-		pollInterval:     pollInterval,
+		repo:         repo,
+		publisher:    publisher,
+		pollInterval: pollInterval,
 	}
 }
 
@@ -83,7 +76,7 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 				continue
 			}
 
-			pubErr = w.bookingPublisher.PublishBookingCreated(ctx, bookingCreated.BookingID)
+			pubErr = w.publisher.PublishBookingCreated(ctx, bookingCreated)
 
 		case constants.EventTypeBookingCancelled:
 			var bookingCancelled events.BookingCancelledEvent
@@ -93,7 +86,17 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 				continue
 			}
 
-			pubErr = w.kafkaPublisher.PublishBookingCancelled(ctx, bookingCancelled)
+			pubErr = w.publisher.PublishBookingCancelled(ctx, bookingCancelled)
+
+		case constants.EventTypeBookingPendingPayment:
+			var bookingPendingPayment events.BookingPendingPaymentEvent
+			if err := json.Unmarshal(event.Payload, &bookingPendingPayment); err != nil {
+				slog.Error("Outbox worker: deserialize booking pending payment event err:", slog.String("error", err.Error()))
+				_ = w.repo.MarkProcessed(ctx, event.ID)
+				continue
+			}
+
+			pubErr = w.publisher.PublishBookingPendingPayment(ctx, bookingPendingPayment)
 
 		default:
 			slog.Error("Outbox worker: unknown event type", slog.String("event_type", event.EventType))

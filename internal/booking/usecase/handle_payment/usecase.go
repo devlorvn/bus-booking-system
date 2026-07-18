@@ -72,7 +72,7 @@ func (u *HandlePaymentUsecase) Success(
 		booking.Status = "PAID"
 		booking.PaymentStatus = "COMPLETED"
 
-		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
+		if _, err := u.bookingRepo.Update(txCtx, booking); err != nil {
 			return err
 		}
 
@@ -131,7 +131,7 @@ func (u *HandlePaymentUsecase) Failed(
 		booking.Status = "FAILED"
 		booking.PaymentStatus = "FAILED"
 
-		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
+		if _, err := u.bookingRepo.Update(txCtx, booking); err != nil {
 			return err
 		}
 
