@@ -118,6 +118,7 @@ func main() {
 	// Initial handle payment usecase
 	handlerPaymentUsecase := handlepaymentUC.New(
 		bookingRepoAdapter,
+		bookingSeatRepo,
 		busProvider,
 		bookingLockRepo,
 		outboxRepo,
@@ -127,6 +128,7 @@ func main() {
 	// Initial expire booking usecase
 	expireBookingUsecase := expirebookinguc.New(
 		bookingRepoAdapter,
+		bookingSeatRepo,
 		busProvider,
 		outboxRepo,
 		txManager,

@@ -3,7 +3,6 @@ package expirebooking
 import (
 	bookingDomain "booking-system/internal/booking/domain"
 	"booking-system/internal/booking/ports"
-	busDomain "booking-system/internal/bus/domain"
 	"booking-system/pkg/postgres/model"
 	"booking-system/pkg/shared"
 	"booking-system/pkg/shared/events"
@@ -15,31 +14,44 @@ import (
 )
 
 type ExpireBookingUsecase struct {
-	bookingRepo ports.BookingRepository
-	busProvider ports.BusProvider
-	outboxRepo  ports.OutboxRepository
-	tx          shared.Transaction
+	bookingRepo     ports.BookingRepository
+	bookingSeatRepo ports.BookingSeatRepository
+	busProvider     ports.BusProvider
+	outboxRepo      ports.OutboxRepository
+	tx              shared.Transaction
 }
 
 func New(
 	bookingRepo ports.BookingRepository,
+	bookingSeatRepo ports.BookingSeatRepository,
 	busProvider ports.BusProvider,
 	outboxRepo ports.OutboxRepository,
 	tx shared.Transaction,
 ) *ExpireBookingUsecase {
 	return &ExpireBookingUsecase{
-		bookingRepo: bookingRepo,
-		busProvider: busProvider,
-		outboxRepo:  outboxRepo,
-		tx:          tx,
+		bookingRepo:     bookingRepo,
+		bookingSeatRepo: bookingSeatRepo,
+		busProvider:     busProvider,
+		outboxRepo:      outboxRepo,
+		tx:              tx,
 	}
 }
 
 func (u *ExpireBookingUsecase) Execute(ctx context.Context, bookingID uuid.UUID) (*bookingDomain.Booking, error) {
 	var booking *bookingDomain.Booking
-	var seats []*busDomain.Seat
+	var seats []*bookingDomain.BookingSeat
+	var err error
 
-	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+	seats, err = u.bookingSeatRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(seats) == 0 {
+		return nil, errors.New("SEAT_NOT_FOUND")
+	}
+
+	err = u.tx.Execute(ctx, func(txCtx context.Context) error {
 		var err error
 		booking, err = u.bookingRepo.GetByID(txCtx, bookingID)
 		if err != nil {
@@ -54,11 +66,6 @@ func (u *ExpireBookingUsecase) Execute(ctx context.Context, bookingID uuid.UUID)
 		booking.PaymentStatus = "FAILED"
 
 		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
-			return err
-		}
-
-		seats, err = u.busProvider.GetSeatByBookingID(txCtx, bookingID)
-		if err != nil {
 			return err
 		}
 

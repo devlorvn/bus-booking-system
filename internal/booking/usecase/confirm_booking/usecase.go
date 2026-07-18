@@ -26,7 +26,7 @@ const (
 
 type ConfirmBookingUsecase struct {
 	bookingRepo     ports.BookingRepository
-	bookingSeatRepo BookingSeatRepository
+	bookingSeatRepo ports.BookingSeatRepository
 	userPort        UserPort
 	seatLockPort    SeatLockPort
 	busProvider     ports.BusProvider
@@ -38,7 +38,7 @@ type ConfirmBookingUsecase struct {
 
 func New(
 	bookingRepo ports.BookingRepository,
-	bookingSeatRepo BookingSeatRepository,
+	bookingSeatRepo ports.BookingSeatRepository,
 	userPort UserPort,
 	seatLockPort SeatLockPort,
 	busProvider ports.BusProvider,
@@ -130,47 +130,36 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil, err
 	}
 
+	user, err := u.userPort.FindByPhone(
+		ctx,
+		req.PhoneNumber,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		user = &userDomain.User{
+			ID:          uuid.New(),
+			Name:        req.Name,
+			Email:       req.Email,
+			PhoneNumber: req.PhoneNumber,
+		}
+
+		if err := u.userPort.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	} else {
+		user.Name = req.Name
+		user.Email = req.Email
+
+		if err := u.userPort.Update(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
 	var bookingID uuid.UUID
 	err = u.tx.Execute(ctx, func(txCtx context.Context) error {
-		err = u.busProvider.BookSeats(
-			txCtx,
-			req.BusID,
-			req.SeatCodes,
-		)
-		if err != nil {
-			if err.Error() == "SOME_SEATS_ALREADY_BOOKED" {
-				return ErrSeatAlreadyBooked
-			}
-			return err
-		}
-
-		user, err := u.userPort.FindByPhone(
-			txCtx,
-			req.PhoneNumber,
-		)
-		if err != nil {
-			return err
-		}
-
-		if user == nil {
-			user = &userDomain.User{
-				ID:          uuid.New(),
-				Name:        req.Name,
-				Email:       req.Email,
-				PhoneNumber: req.PhoneNumber,
-			}
-
-			if err := u.userPort.Create(txCtx, user); err != nil {
-				return err
-			}
-		} else {
-			user.Name = req.Name
-			user.Email = req.Email
-
-			if err := u.userPort.Update(txCtx, user); err != nil {
-				return err
-			}
-		}
 		bookingID = uuid.New()
 		booking := &bookingDomain.Booking{
 			ID:            bookingID,
@@ -194,6 +183,7 @@ func (u *ConfirmBookingUsecase) Execute(
 			items = append(items, &bookingDomain.BookingSeat{
 				BookingID: bookingID,
 				SeatID:    seat.ID,
+				SeatCode:  seat.SeatCode,
 			})
 		}
 
@@ -230,6 +220,18 @@ func (u *ConfirmBookingUsecase) Execute(
 		return nil
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	err = u.busProvider.BookSeats(
+		ctx,
+		req.BusID,
+		req.SeatCodes,
+	)
+	if err != nil {
+		if err.Error() == "SOME_SEATS_ALREADY_BOOKED" {
+			return nil, ErrSeatAlreadyBooked
+		}
 		return nil, err
 	}
 

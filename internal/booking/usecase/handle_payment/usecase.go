@@ -3,37 +3,40 @@ package handlepayment
 import (
 	bookingDomain "booking-system/internal/booking/domain"
 	"booking-system/internal/booking/ports"
-	busDomain "booking-system/internal/bus/domain"
 	"booking-system/pkg/postgres/model"
 	"booking-system/pkg/shared"
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/google/uuid"
 )
 
 type HandlePaymentUsecase struct {
-	bookingRepo ports.BookingRepository
-	busProvider ports.BusProvider
-	bookingLock ports.BookingLockPort
-	outboxRepo  ports.OutboxRepository
-	tx          shared.Transaction
+	bookingRepo     ports.BookingRepository
+	bookingSeatRepo ports.BookingSeatRepository
+	busProvider     ports.BusProvider
+	bookingLock     ports.BookingLockPort
+	outboxRepo      ports.OutboxRepository
+	tx              shared.Transaction
 }
 
 func New(
 	bookingRepo ports.BookingRepository,
+	bookingSeatRepo ports.BookingSeatRepository,
 	busProvider ports.BusProvider,
 	bookingLock ports.BookingLockPort,
 	outboxRepo ports.OutboxRepository,
 	tx shared.Transaction,
 ) *HandlePaymentUsecase {
 	return &HandlePaymentUsecase{
-		bookingRepo: bookingRepo,
-		busProvider: busProvider,
-		bookingLock: bookingLock,
-		outboxRepo:  outboxRepo,
-		tx:          tx,
+		bookingRepo:     bookingRepo,
+		bookingSeatRepo: bookingSeatRepo,
+		busProvider:     busProvider,
+		bookingLock:     bookingLock,
+		outboxRepo:      outboxRepo,
+		tx:              tx,
 	}
 }
 
@@ -42,10 +45,20 @@ func (u *HandlePaymentUsecase) Success(
 	bookingID uuid.UUID,
 ) error {
 	var booking *bookingDomain.Booking
-	var seats []*busDomain.Seat
+	var seats []*bookingDomain.BookingSeat
 	var shouldRelease bool
+	var err error
 
-	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+	seats, err = u.bookingSeatRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return err
+	}
+
+	if len(seats) == 0 {
+		return errors.New("SEAT_NOT_FOUND")
+	}
+
+	err = u.tx.Execute(ctx, func(txCtx context.Context) error {
 		var err error
 		booking, err = u.bookingRepo.GetByID(txCtx, bookingID)
 		if err != nil {
@@ -56,18 +69,10 @@ func (u *HandlePaymentUsecase) Success(
 			return nil
 		}
 
-		seats, err = u.busProvider.GetSeatByBookingID(txCtx, bookingID)
-		if err != nil {
-			return err
-		}
-
 		booking.Status = "PAID"
 		booking.PaymentStatus = "COMPLETED"
 
 		if err := u.bookingRepo.Update(txCtx, booking); err != nil {
-			return err
-		}
-		if err := u.busProvider.MarkBookedByBookingID(txCtx, bookingID, booking.BusID, booking.TotalSeats); err != nil {
 			return err
 		}
 
@@ -75,6 +80,10 @@ func (u *HandlePaymentUsecase) Success(
 		return nil
 	})
 	if err != nil {
+		return err
+	}
+
+	if err := u.busProvider.MarkBookedByBookingID(ctx, bookingID, booking.BusID, booking.TotalSeats); err != nil {
 		return err
 	}
 
@@ -95,10 +104,20 @@ func (u *HandlePaymentUsecase) Failed(
 	bookingID uuid.UUID,
 ) error {
 	var booking *bookingDomain.Booking
-	var seats []*busDomain.Seat
+	var seats []*bookingDomain.BookingSeat
 	var shouldRelease bool
+	var err error
 
-	err := u.tx.Execute(ctx, func(txCtx context.Context) error {
+	seats, err = u.bookingSeatRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return err
+	}
+
+	if len(seats) == 0 {
+		return errors.New("SEAT_NOT_FOUND")
+	}
+
+	err = u.tx.Execute(ctx, func(txCtx context.Context) error {
 		var err error
 		booking, err = u.bookingRepo.GetByID(txCtx, bookingID)
 		if err != nil {
@@ -107,11 +126,6 @@ func (u *HandlePaymentUsecase) Failed(
 
 		if booking.Status != "PENDING_PAYMENT" {
 			return nil
-		}
-
-		seats, err = u.busProvider.GetSeatByBookingID(txCtx, bookingID)
-		if err != nil {
-			return err
 		}
 
 		booking.Status = "FAILED"

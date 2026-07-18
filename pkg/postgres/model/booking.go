@@ -22,4 +22,5 @@ type Booking struct {
 type BookingSeat struct {
 	BookingID uuid.UUID `gorm:"type:uuid;primaryKey"`
 	SeatID    uuid.UUID `gorm:"type:uuid;primaryKey"`
+	SeatCode  string    `gorm:"type:varchar(10);not null"`
 }

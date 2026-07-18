@@ -5,6 +5,7 @@ import (
 	"booking-system/pkg/database"
 	"context"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -25,4 +26,13 @@ func (r *BookingSeatRepository) dbFromContext(ctx context.Context) *gorm.DB {
 
 func (r *BookingSeatRepository) BulkCreate(ctx context.Context, items []*domain.BookingSeat) error {
 	return r.dbFromContext(ctx).Create(&items).Error
+}
+
+func (r *BookingSeatRepository) GetByBookingID(ctx context.Context, bookingID uuid.UUID) ([]*domain.BookingSeat, error) {
+	var items []*domain.BookingSeat
+	err := r.dbFromContext(ctx).Where("booking_id = ?", bookingID).Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
 }

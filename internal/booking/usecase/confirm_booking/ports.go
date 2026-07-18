@@ -3,18 +3,12 @@ package confirmbooking
 import (
 	"context"
 
-	bookingDomain "booking-system/internal/booking/domain"
 	userDomain "booking-system/internal/user/domain"
 
 	"github.com/google/uuid"
 )
 
-type BookingSeatRepository interface {
-	BulkCreate(
-		ctx context.Context,
-		bookingSeats []*bookingDomain.BookingSeat,
-	) error
-}
+
 
 type UserPort interface {
 	FindByPhone(

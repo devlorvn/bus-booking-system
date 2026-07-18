@@ -52,3 +52,15 @@ type BookingLockPort interface {
 type OutboxRepository interface {
 	Save(ctx context.Context, outbox *model.Outbox) error
 }
+
+type BookingSeatRepository interface {
+	BulkCreate(
+		ctx context.Context,
+		bookingSeats []*bookingDomain.BookingSeat,
+	) error
+
+	GetByBookingID(
+		ctx context.Context,
+		bookingID uuid.UUID,
+	) ([]*bookingDomain.BookingSeat, error)
+}
