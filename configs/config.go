@@ -35,6 +35,7 @@ type Config struct {
 	BusServiceAddr     string
 	BookingServiceAddr string
 	UserServiceAddr    string
+	MetricsPort        string
 }
 
 func LoadConfig() *Config {
@@ -69,6 +70,7 @@ func LoadConfig() *Config {
 		BusServiceAddr:     getEnvOrDefault("BUS_SERVICE_ADDR", "127.0.0.1:50051"),
 		BookingServiceAddr: getEnvOrDefault("BOOKING_SERVICE_ADDR", "127.0.0.1:50052"),
 		UserServiceAddr:    getEnvOrDefault("USER_SERVICE_ADDR", "127.0.0.1:50053"),
+		MetricsPort:        getEnvOrDefault("METRICS_PORT", "9090"),
 	}
 }
 

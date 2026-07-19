@@ -6,6 +6,7 @@ import (
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/events"
+	"booking-system/pkg/shared/metrics"
 	"booking-system/pkg/shared/middleware"
 	"context"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -88,7 +90,10 @@ func main() {
 	}()
 
 	r := gin.Default()
+	r.Use(metrics.GinMetricsMiddleware())
 	r.Use(middleware.WsCorsMiddleware())
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	wsHandler := ws.NewHandler(hub)
 	r.GET("/ws/buses/:id", wsHandler.Handle)

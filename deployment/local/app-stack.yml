@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Databases & Message Brokers
@@ -59,7 +59,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-user-service:${TAG}
     environment:
       - APP_PORT=50053
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -70,6 +70,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9093
     networks:
       - app-network
     deploy:
@@ -79,7 +80,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-bus-service:${TAG}
     environment:
       - APP_PORT=50051
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -90,6 +91,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9091
     networks:
       - app-network
     deploy:
@@ -99,7 +101,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-booking-service:${TAG}
     environment:
       - APP_PORT=50052
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -112,6 +114,7 @@ services:
       - BOOKING_LOCK_TTL=5
       - BUS_SERVICE_ADDR=bus-service:50051
       - USER_SERVICE_ADDR=user-service:50053
+      - METRICS_PORT=9092
     networks:
       - app-network
     deploy:
@@ -121,7 +124,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-payment-service:${TAG}
     environment:
       - APP_PORT=8083
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -132,6 +135,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9094
     networks:
       - app-network
     deploy:
@@ -141,7 +145,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-notification-service:${TAG}
     environment:
       - APP_PORT=8084
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -152,6 +156,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9095
     networks:
       - app-network
     deploy:
@@ -161,7 +166,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-ws-service:${TAG}
     environment:
       - APP_PORT=8082
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin
@@ -189,7 +194,7 @@ services:
     image: ${DOCKER_REGISTRY}/bus-booking-api:${TAG}
     environment:
       - APP_PORT=8080
-      - APP_MODE=production
+      - APP_MODE=local
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=admin

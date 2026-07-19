@@ -18,6 +18,7 @@ import (
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/events"
+	"booking-system/pkg/shared/metrics"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
 	userpb "booking-system/proto/user/v1"
@@ -221,13 +222,18 @@ func main() {
 		}
 	}()
 
+	// Start metrics server
+	metrics.StartMetricsServer(config.MetricsPort)
+
 	// Running Booking gRPC server on port 50052
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 
 	// Register health check service
 	healthServer := health.NewServer()

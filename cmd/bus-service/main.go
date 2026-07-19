@@ -11,6 +11,7 @@ import (
 	postgresRepository "booking-system/pkg/postgres/repository"
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
+	"booking-system/pkg/shared/metrics"
 	buspb "booking-system/proto/bus/v1"
 	"context"
 	"log/slog"
@@ -79,6 +80,9 @@ func main() {
 		}
 	}()
 
+	// Start metrics server
+	metrics.StartMetricsServer(config.MetricsPort)
+
 	// initial grpc server
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -86,7 +90,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 
 	// Register health check service
 	healthServer := health.NewServer()

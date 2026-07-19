@@ -70,6 +70,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9093
     networks:
       - app-network
     deploy:
@@ -90,6 +91,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9091
     networks:
       - app-network
     deploy:
@@ -112,6 +114,7 @@ services:
       - BOOKING_LOCK_TTL=5
       - BUS_SERVICE_ADDR=bus-service:50051
       - USER_SERVICE_ADDR=user-service:50053
+      - METRICS_PORT=9092
     networks:
       - app-network
     deploy:
@@ -132,6 +135,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9094
     networks:
       - app-network
     deploy:
@@ -152,6 +156,7 @@ services:
       - REDIS_PORT=6379
       - KAFKA_BROKERS=kafka:9092
       - BOOKING_LOCK_TTL=5
+      - METRICS_PORT=9095
     networks:
       - app-network
     deploy:

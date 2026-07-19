@@ -5,6 +5,7 @@ import (
 	"booking-system/pkg/kafka"
 	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/events"
+	"booking-system/pkg/shared/metrics"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -20,6 +21,9 @@ import (
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	config := configs.LoadConfig()
+
+	// Start metrics server
+	metrics.StartMetricsServer(config.MetricsPort)
 
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)

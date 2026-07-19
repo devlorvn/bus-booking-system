@@ -1,0 +1,37 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: swarm-containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/lib/docker/containers/*/*.log
+    pipeline_stages:
+      # Parse Docker JSON log format wrapper
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            time: time
+      # Parse the actual nested JSON structured logs from our Go services (using slog format)
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            error: error
+            booking_id: booking_id
+          source: log
+      # Fallback time if time parsing is needed
+      - timestamp:
+          source: time
+          format: RFC3339

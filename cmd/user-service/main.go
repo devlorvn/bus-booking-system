@@ -7,6 +7,7 @@ import (
 	"booking-system/pkg/database"
 	"booking-system/pkg/postgres"
 	postgresRepository "booking-system/pkg/postgres/repository"
+	"booking-system/pkg/shared/metrics"
 	userpb "booking-system/proto/user/v1"
 	"log/slog"
 	"net"
@@ -33,12 +34,17 @@ func main() {
 	userRepo := postgresRepository.NewUserRepository(db)
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 
+	// Start metrics server
+	metrics.StartMetricsServer(cfg.MetricsPort)
+
 	lis, err := net.Listen("tcp", ":50053")
 	if err != nil {
 		slog.Error("failed to listen: ", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 
 	// Register health check service
 	healthServer := health.NewServer()

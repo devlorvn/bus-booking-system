@@ -6,6 +6,7 @@ import (
 	"booking-system/pkg/redis"
 	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/events"
+	"booking-system/pkg/shared/metrics"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -17,6 +18,9 @@ import (
 
 func main() {
 	cfg := configs.LoadConfig()
+
+	// Start metrics server
+	metrics.StartMetricsServer(cfg.MetricsPort)
 
 	redisClient := redis.NewClient(&cfg.Redis)
 	defer redisClient.Close()

@@ -6,6 +6,7 @@ import (
 	httpBusDelivery "booking-system/internal/bus/delivery/http"
 	httpBusHandler "booking-system/internal/bus/delivery/http/handler"
 	"booking-system/pkg/redis"
+	"booking-system/pkg/shared/metrics"
 	"booking-system/pkg/shared/middleware"
 	bookingpb "booking-system/proto/booking/v1"
 	buspb "booking-system/proto/bus/v1"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -55,6 +57,9 @@ func main() {
 	bookingGrpcClient := bookingpb.NewBookingServiceClient(bookingConn)
 
 	r := gin.Default()
+	r.Use(metrics.GinMetricsMiddleware())
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Register health check endpoint for Kubernetes
 	r.GET("/health", func(c *gin.Context) {
