@@ -5,6 +5,7 @@ import (
 	"booking-system/internal/booking/ports"
 	"booking-system/pkg/postgres/model"
 	"booking-system/pkg/shared"
+	"booking-system/pkg/shared/constants"
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
@@ -73,6 +74,30 @@ func (u *HandlePaymentUsecase) Success(
 		booking.PaymentStatus = "COMPLETED"
 
 		if _, err := u.bookingRepo.Update(txCtx, booking); err != nil {
+			return err
+		}
+
+		// Save BookingConfirmedEvent to outbox table inside db transaction
+		confirmEvent := events.BookingConfirmedEvent{
+			BookingID: bookingID,
+			BusID:     booking.BusID,
+		}
+
+		eventBytes, err := json.Marshal(confirmEvent)
+		if err != nil {
+			return err
+		}
+
+		outboxRecord := &model.Outbox{
+			ID:            uuid.New(),
+			AggregateType: "booking",
+			AggregateID:   bookingID.String(),
+			EventType:     constants.EventTypeBookingConfirmed,
+			Payload:       eventBytes,
+			Status:        "PENDING",
+		}
+
+		if err := u.outboxRepo.Save(txCtx, outboxRecord); err != nil {
 			return err
 		}
 

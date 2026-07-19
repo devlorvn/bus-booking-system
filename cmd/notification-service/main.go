@@ -25,12 +25,12 @@ func main() {
 	defer cancelWorkers()
 
 	// Initial kafka reader for notification topic (transient seat locks)
-	kafkaReader := kafka.NewReader(
+	notiKafkaReader := kafka.NewReader(
 		cfg.Kafka.Brokers,
 		constants.NotificationTopic,
 		constants.NotificationServicePollGroup,
 	)
-	defer kafkaReader.Close()
+	defer notiKafkaReader.Close()
 
 	// Initial kafka reader for booking events topic (business events)
 	bookingReader := kafka.NewReader(
@@ -48,7 +48,7 @@ func main() {
 		defer wg.Done()
 		slog.Info("Notification service: Relaying transient WS events")
 		for {
-			msg, err := kafkaReader.ReadMessage(workerCtx)
+			msg, err := notiKafkaReader.ReadMessage(workerCtx)
 			if err != nil {
 				if workerCtx.Err() != nil {
 					return
@@ -118,6 +118,35 @@ func main() {
 				err = redisClient.Publish(workerCtx, constants.WsChanel, payloadBytes).Err()
 				if err != nil {
 					slog.Error("Notification Service: Failed to publish relayed booking cancelled to Redis: %v", slog.String("error", err.Error()))
+					continue
+				}
+			} else if eventType == constants.EventTypeBookingConfirmed {
+				var event events.BookingConfirmedEvent
+				if err := json.Unmarshal(msg.Value, &event); err != nil {
+					slog.Error("Notification Service: Error unmarshalling confirmed event: %v", slog.String("error", err.Error()))
+					continue
+				}
+
+				// Format into WebSocket JSON structure expected by client
+				payload := map[string]interface{}{
+					"event":  constants.EventTypeBookingConfirmed,
+					"bus_id": event.BusID.String(),
+					"data": map[string]interface{}{
+						"booking_id": event.BookingID.String(),
+						"bus_id":     event.BusID.String(),
+					},
+				}
+
+				payloadBytes, err := json.Marshal(payload)
+				if err != nil {
+					slog.Error("Notification Service: Failed to marshal WS payload: %v", slog.String("error", err.Error()))
+					continue
+				}
+
+				slog.Info("Notification Service: Relaying booking confirmed event to Redis Pub/Sub")
+				err = redisClient.Publish(workerCtx, constants.WsChanel, payloadBytes).Err()
+				if err != nil {
+					slog.Error("Notification Service: Failed to publish relayed booking confirmed to Redis: %v", slog.String("error", err.Error()))
 					continue
 				}
 			}

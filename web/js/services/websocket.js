@@ -1,6 +1,6 @@
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const WS_BASE = window.location.protocol === "file:" 
-  ? "ws://localhost:8082" 
+const WS_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:")
+  ? `${protocol}//${window.location.hostname}:8082`
   : `${protocol}//${window.location.host}`;
 
 window.WebSocketService = function () {

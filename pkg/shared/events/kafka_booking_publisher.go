@@ -62,3 +62,18 @@ func (p *KafkaBookingPublisher) PublishBookingPendingPayment(ctx context.Context
 		},
 	})
 }
+
+func (p *KafkaBookingPublisher) PublishBookingConfirmed(ctx context.Context, event BookingConfirmedEvent) error {
+	bytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(event.BookingID.String()),
+		Value: bytes,
+		Headers: []kafka.Header{
+			{Key: "event_type", Value: []byte(constants.EventTypeBookingConfirmed)},
+		},
+	})
+}

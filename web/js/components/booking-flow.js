@@ -1,6 +1,8 @@
 document.addEventListener("alpine:init", () => {
   Alpine.data("bookingFlow", () => ({
     booking: false,
+    processingSaga: false,
+    pendingBookingID: null,
     ws: null,
 
     init() {
@@ -124,18 +126,11 @@ document.addEventListener("alpine:init", () => {
           this.customerEmail
         );
 
-        alert(`Đặt vé thành công! Mã đặt vé: ${res.data.booking_id}`);
-
-        // Reset inputs and flow
-        this.customerName = "";
-        this.customerPhone = "";
-        this.customerEmail = "";
-        Alpine.store("booking").reset();
-        Alpine.store("bus").clearSelectedBus();
+        this.pendingBookingID = res.data.booking_id;
+        this.processingSaga = true;
       } catch (err) {
         console.error(err);
         alert(`Đặt vé thất bại: ${err.message}`);
-      } finally {
         this.booking = false;
       }
     },
@@ -174,6 +169,14 @@ document.addEventListener("alpine:init", () => {
           this.handleSeatReleased(message.data);
           break;
 
+        case "booking_confirmed":
+          this.handleBookingConfirmed(message.data);
+          break;
+
+        case "booking_failed":
+          this.handleBookingFailed(message.data);
+          break;
+
         default:
           console.warn("Unknown WS event:", message.event);
       }
@@ -199,6 +202,31 @@ document.addEventListener("alpine:init", () => {
       seat.status = 'AVAILABLE';
 
       console.log("Seat released:", seat.code);
+    },
+
+    handleBookingConfirmed(data) {
+      if (this.processingSaga && data.booking_id === this.pendingBookingID) {
+        alert(`Đặt vé thành công! Mã đặt vé: ${this.pendingBookingID}`);
+        this.resetBookingFlow();
+      }
+    },
+
+    handleBookingFailed(data) {
+      if (this.processingSaga && data.booking_id === this.pendingBookingID) {
+        alert(`Đặt vé thất bại! Thanh toán không thành công hoặc hết hạn khóa ghế.`);
+        this.resetBookingFlow();
+      }
+    },
+
+    resetBookingFlow() {
+      this.customerName = "";
+      this.customerPhone = "";
+      this.customerEmail = "";
+      this.pendingBookingID = null;
+      this.processingSaga = false;
+      this.booking = false;
+      Alpine.store("booking").reset();
+      Alpine.store("bus").clearSelectedBus();
     },
 
     disconnect() {

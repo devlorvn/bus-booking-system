@@ -14,6 +14,7 @@ type EventPublisher interface {
 	PublishBookingCreated(ctx context.Context, event events.BookingCreatedEvent) error
 	PublishBookingCancelled(ctx context.Context, event events.BookingCancelledEvent) error
 	PublishBookingPendingPayment(ctx context.Context, event events.BookingPendingPaymentEvent) error
+	PublishBookingConfirmed(ctx context.Context, event events.BookingConfirmedEvent) error
 }
 
 type OutboxWorker struct {
@@ -87,6 +88,15 @@ func (w *OutboxWorker) processPendingEvents(ctx context.Context) {
 			}
 
 			pubErr = w.publisher.PublishBookingCancelled(ctx, bookingCancelled)
+		case constants.EventTypeBookingConfirmed:
+			var bookingConfirmed events.BookingConfirmedEvent
+			if err := json.Unmarshal(event.Payload, &bookingConfirmed); err != nil {
+				slog.Error("Outbox worker: deserialize booking confirmed event err:", slog.String("error", err.Error()))
+				_ = w.repo.MarkProcessed(ctx, event.ID)
+				continue
+			}
+
+			pubErr = w.publisher.PublishBookingConfirmed(ctx, bookingConfirmed)
 
 		case constants.EventTypeBookingPendingPayment:
 			var bookingPendingPayment events.BookingPendingPaymentEvent

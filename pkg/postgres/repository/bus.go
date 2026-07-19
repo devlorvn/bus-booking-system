@@ -45,7 +45,6 @@ func (r *BusRepository) Update(ctx context.Context, bus *domain.Bus) (*domain.Bu
 		"license_plate":   bus.LicensePlate,
 		"from_location":   bus.FromLocation,
 		"to_location":     bus.ToLocation,
-		"seats":           bus.Seats,
 		"departure_time":  bus.DepartureTime,
 		"total_seats":     bus.TotalSeats,
 		"available_seats": bus.AvailableSeats,

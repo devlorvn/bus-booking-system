@@ -46,3 +46,8 @@ type SeatsReservationFailedEvent struct {
 	SeatCodes []string  `json:"seat_codes"`
 	Reason    string    `json:"reason"`
 }
+
+type BookingConfirmedEvent struct {
+	BookingID uuid.UUID `json:"booking_id"`
+	BusID     uuid.UUID `json:"bus_id"`
+}

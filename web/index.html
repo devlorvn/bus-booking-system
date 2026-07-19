@@ -146,6 +146,17 @@
 
       <template x-if="currentPage === 'booking'">
         <section x-data="bookingFlow">
+          <!-- Processing Booking Modal -->
+          <template x-if="processingSaga">
+            <div class="modal-backdrop" style="z-index: 2000;">
+              <div class="modal" style="text-align: center; padding: 40px; max-width: 400px; width: 90%;">
+                <div class="spinner"></div>
+                <h3 style="margin-bottom: 12px; font-size: 20px; color: #1e293b;">Đang tiến hành đặt vé...</h3>
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin-bottom: 0;">Vui lòng giữ nguyên màn hình. Hệ thống đang thực hiện giữ chỗ và kiểm tra thanh toán của bạn.</p>
+              </div>
+            </div>
+          </template>
+
           <!-- Booking Steps Indicator -->
           <div class="booking-steps-indicator">
             <div class="step-indicator-item" :class="{ active: step === 1, completed: step > 1 }">
