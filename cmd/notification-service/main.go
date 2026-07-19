@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -39,8 +40,12 @@ func main() {
 	)
 	defer bookingReader.Close()
 
+	var wg sync.WaitGroup
+
 	// Goroutine 1: Relay transient WS events
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		slog.Info("Notification service: Relaying transient WS events")
 		for {
 			msg, err := kafkaReader.ReadMessage(workerCtx)
@@ -62,7 +67,9 @@ func main() {
 	}()
 
 	// Goroutine 2: Relay business events (like booking_cancelled) to WS
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		slog.Info("Notification service: Relaying business events to WS")
 		for {
 			msg, err := bookingReader.ReadMessage(workerCtx)
@@ -122,4 +129,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	slog.Info("Shutting down server gracefully...")
+
+	cancelWorkers()
+	wg.Wait()
+	slog.Info("Notification service exited")
 }

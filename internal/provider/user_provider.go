@@ -23,6 +23,9 @@ func (p *UserProvider) FindByPhone(ctx context.Context, phone string) (*userDoma
 	if err != nil {
 		return nil, err
 	}
+	if resp == nil || resp.User == nil {
+		return nil, nil
+	}
 	return &userDomain.User{
 		ID:          uuid.MustParse(resp.User.Id),
 		PhoneNumber: resp.User.PhoneNumber,

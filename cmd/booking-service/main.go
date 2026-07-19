@@ -47,6 +47,13 @@ func main() {
 		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
 	}
 
+	if config.Mode != "production" {
+		err = postgres.AutoMigrate(db)
+		if err != nil {
+			slog.Error("failed to migrate database: ", slog.String("error", err.Error()))
+		}
+	}
+
 	txManager := database.NewTransaction(db)
 
 	// initial redis
@@ -218,6 +225,7 @@ func main() {
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		slog.Error("failed to listen: ", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	grpcServer := grpc.NewServer()
 

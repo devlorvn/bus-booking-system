@@ -66,9 +66,9 @@ func LoadConfig() *Config {
 			Brokers: brokers,
 		},
 		BookingLockTTL:     getEnv("BOOKING_LOCK_TTL"),
-		BusServiceAddr:     getEnvOrDefault("BUS_SERVICE_ADDR", "localhost:50051"),
-		BookingServiceAddr: getEnvOrDefault("BOOKING_SERVICE_ADDR", "localhost:50052"),
-		UserServiceAddr:    getEnvOrDefault("USER_SERVICE_ADDR", "localhost:50053"),
+		BusServiceAddr:     getEnvOrDefault("BUS_SERVICE_ADDR", "127.0.0.1:50051"),
+		BookingServiceAddr: getEnvOrDefault("BOOKING_SERVICE_ADDR", "127.0.0.1:50052"),
+		UserServiceAddr:    getEnvOrDefault("USER_SERVICE_ADDR", "127.0.0.1:50053"),
 	}
 }
 

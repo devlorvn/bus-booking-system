@@ -12,6 +12,7 @@ import (
 	"booking-system/pkg/shared/events"
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/google/uuid"
 )
@@ -64,7 +65,7 @@ func (u *ConfirmBookingUsecase) Execute(
 	ctx context.Context,
 	req dto.ConfirmBookingRequest,
 ) (*dto.ConfirmBookingResponse, error) {
-
+	slog.Debug("confirm booking", slog.String("temp_user_id", req.TempUserID))
 	err := u.bookingLockPort.AcquireConfirmLock(ctx, req.TempUserID)
 	if err != nil {
 		return nil, err

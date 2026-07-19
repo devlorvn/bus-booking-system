@@ -83,6 +83,7 @@ func main() {
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		slog.Error("failed to listen: ", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	grpcServer := grpc.NewServer()

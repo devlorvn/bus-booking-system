@@ -67,12 +67,12 @@ func main() {
 
 			time.Sleep(time.Duration(1000+rand.IntN(1000)) * time.Millisecond)
 			// Giả lập 90% thành công, 10% thất bại
-			status := "SUCCESS"
+			status := "FAILED"
 			reason := ""
-			if rand.Float32() < 0.1 {
-				status = "FAILED"
-				reason = "insufficient_balance"
-			}
+			// if rand.Float32() < 0.1 {
+			// 	status = "FAILED"
+			// 	reason = "insufficient_balance"
+			// }
 			processedEvent := events.PaymentProcessedEvent{
 				BookingID: event.BookingID,
 				Status:    status,
