@@ -12,6 +12,7 @@ jobs:
     name: Build & Push Docker Images (Local)
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         service: [
           api,

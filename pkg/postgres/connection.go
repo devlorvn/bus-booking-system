@@ -13,9 +13,20 @@ import (
 func NewPostgres(cfg *configs.Database) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		cfg.Host, cfg.User, cfg.Password, cfg.Name, cfg.Port, cfg.SslMode)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	
+	var db *gorm.DB
+	var err error
+	maxRetries := 15
+	for i := 1; i <= maxRetries; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		fmt.Printf("Failed to connect to Postgres (attempt %d/%d): %v. Retrying in 2s...\n", i, maxRetries, err)
+		time.Sleep(2 * time.Second)
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to postgres after %d attempts: %w", maxRetries, err)
 	}
 
 	sqlDb, err := db.DB()

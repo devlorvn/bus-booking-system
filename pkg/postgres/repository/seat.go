@@ -128,3 +128,14 @@ func (r *SeatRepository) ReleaseSeatsByBookingID(
 		Where("id IN (SELECT seat_id FROM booking_seats WHERE booking_id = ?)", bookingID).
 		Update("status", "AVAILABLE").Error
 }
+
+func (r *SeatRepository) ReleaseSeats(
+	ctx context.Context,
+	busID uuid.UUID,
+	codes []string,
+) error {
+	return r.dbFromContext(ctx).Model(&domain.Seat{}).
+		Where("bus_id = ? AND seat_code IN ?", busID, codes).
+		Update("status", "AVAILABLE").Error
+}
+

@@ -70,3 +70,8 @@ func (u *SeatUsecase) GetSeatByBookingID(ctx context.Context, bookingID uuid.UUI
 func (u *SeatUsecase) ReleaseSeatsByBookingID(ctx context.Context, bookingID uuid.UUID) error {
 	return u.repo.ReleaseSeatsByBookingID(ctx, bookingID)
 }
+
+func (u *SeatUsecase) ReleaseSeats(ctx context.Context, busID uuid.UUID, codes []string) error {
+	return u.repo.ReleaseSeats(ctx, busID, codes)
+}
+

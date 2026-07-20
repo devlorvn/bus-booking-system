@@ -10,13 +10,15 @@ services:
       POSTGRES_DB: bus_booking
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - app-network
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
 
   redis:
     image: redis:7
@@ -74,7 +76,7 @@ services:
     networks:
       - app-network
     deploy:
-      replicas: 3
+      replicas: 1
 
   bus-service:
     image: ${DOCKER_REGISTRY}/bus-booking-bus-service:${TAG}
@@ -95,7 +97,7 @@ services:
     networks:
       - app-network
     deploy:
-      replicas: 3
+      replicas: 1
 
   booking-service:
     image: ${DOCKER_REGISTRY}/bus-booking-booking-service:${TAG}
@@ -118,7 +120,7 @@ services:
     networks:
       - app-network
     deploy:
-      replicas: 3
+      replicas: 1
 
   payment-service:
     image: ${DOCKER_REGISTRY}/bus-booking-payment-service:${TAG}
@@ -139,7 +141,7 @@ services:
     networks:
       - app-network
     deploy:
-      replicas: 3
+      replicas: 1
 
   notification-service:
     image: ${DOCKER_REGISTRY}/bus-booking-notification-service:${TAG}
@@ -160,7 +162,7 @@ services:
     networks:
       - app-network
     deploy:
-      replicas: 3
+      replicas: 1
 
   ws-service:
     image: ${DOCKER_REGISTRY}/bus-booking-ws-service:${TAG}
@@ -181,7 +183,7 @@ services:
       - app-network
       - traefik-public
     deploy:
-      replicas: 3
+      replicas: 1
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.ws.rule=Host(`api.local`) && PathPrefix(`/ws`)"
@@ -211,7 +213,7 @@ services:
       - app-network
       - traefik-public
     deploy:
-      replicas: 3
+      replicas: 1
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.api.rule=Host(`api.local`)"

@@ -4,29 +4,50 @@ global:
 
 scrape_configs:
   - job_name: 'api-gateway'
-    static_configs:
-      - targets: ['api:8080']
+    dns_sd_configs:
+      - names:
+          - 'tasks.api'
+        type: 'A'
+        port: 8080
 
   - job_name: 'ws-service'
-    static_configs:
-      - targets: ['ws-service:8082']
+    dns_sd_configs:
+      - names:
+          - 'tasks.ws-service'
+        type: 'A'
+        port: 8082
 
   - job_name: 'bus-service'
-    static_configs:
-      - targets: ['bus-service:9091']
+    dns_sd_configs:
+      - names:
+          - 'tasks.bus-service'
+        type: 'A'
+        port: 9091
 
   - job_name: 'booking-service'
-    static_configs:
-      - targets: ['booking-service:9092']
+    dns_sd_configs:
+      - names:
+          - 'tasks.booking-service'
+        type: 'A'
+        port: 9092
 
   - job_name: 'user-service'
-    static_configs:
-      - targets: ['user-service:9093']
+    dns_sd_configs:
+      - names:
+          - 'tasks.user-service'
+        type: 'A'
+        port: 9093
 
   - job_name: 'payment-service'
-    static_configs:
-      - targets: ['payment-service:9094']
+    dns_sd_configs:
+      - names:
+          - 'tasks.payment-service'
+        type: 'A'
+        port: 9094
 
   - job_name: 'notification-service'
-    static_configs:
-      - targets: ['notification-service:9095']
+    dns_sd_configs:
+      - names:
+          - 'tasks.notification-service'
+        type: 'A'
+        port: 9095

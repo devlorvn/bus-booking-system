@@ -35,6 +35,7 @@ func main() {
 	db, err := postgres.NewPostgres(&config.Database)
 	if err != nil {
 		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	txManager := database.NewTransaction(db)
 

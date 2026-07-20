@@ -39,9 +39,10 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load()
-	if err != nil && os.Getenv("APP_MODE") != "production" {
-		panic("Error loading .env file")
+	if _, err := os.Stat(".env"); err == nil {
+		if err := godotenv.Load(); err != nil {
+			panic("Error loading .env file")
+		}
 	}
 
 	// read list brokers

@@ -101,7 +101,7 @@ func (w *BookingWorker) handleBookingCreated(ctx context.Context, event events.B
 
 func (w *BookingWorker) handleBookingCancelled(ctx context.Context, event events.BookingCancelledEvent) {
 	slog.Info("BookingWorker: Booking cancelled event received", slog.String("booking_id", event.BookingID.String()))
-	err := w.usecase.ReleaseSeatsByBookingID(ctx, event.BookingID)
+	err := w.usecase.ReleaseSeats(ctx, event.BusID, event.SeatCodes)
 	if err != nil {
 		slog.Error("BookingWorker: Failed to release seats:", slog.String("error", err.Error()))
 	}

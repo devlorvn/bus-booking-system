@@ -35,4 +35,9 @@ type SeatRepository interface {
 		ctx context.Context,
 		bookingID uuid.UUID,
 	) error
+	ReleaseSeats(
+		ctx context.Context,
+		busID uuid.UUID,
+		codes []string,
+	) error
 }

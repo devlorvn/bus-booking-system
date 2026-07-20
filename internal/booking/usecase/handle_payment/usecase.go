@@ -108,10 +108,6 @@ func (u *HandlePaymentUsecase) Success(
 		return err
 	}
 
-	if err := u.busProvider.MarkBookedByBookingID(ctx, bookingID, booking.BusID, booking.TotalSeats); err != nil {
-		return err
-	}
-
 	if shouldRelease {
 		seatCodes := make([]string, len(seats))
 		for i, seat := range seats {

@@ -7,29 +7,34 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
     networks:
       - app-network
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
 
   loki:
     image: grafana/loki:2.9.1
+    user: root
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/data
+    configs:
+      - source: loki_config
+        target: /etc/loki/local-config.yaml
     networks:
       - app-network
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
 
   promtail:
     image: grafana/promtail:2.9.1
@@ -37,7 +42,9 @@ services:
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/log:/var/log:ro
-      - ./promtail-config.yml:/etc/promtail/config.yml
+    configs:
+      - source: promtail_config
+        target: /etc/promtail/config.yml
     networks:
       - app-network
     deploy:
@@ -45,6 +52,7 @@ services:
 
   grafana:
     image: grafana/grafana:10.1.2
+    user: root
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
@@ -56,7 +64,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.grafana.rule=Host(`grafana.local`)"
@@ -65,8 +73,17 @@ services:
         - "traefik.http.services.grafana-service.loadbalancer.server.port=3000"
         - "traefik.swarm.network=traefik-public"
 
+configs:
+  prometheus_config:
+    file: ./prometheus.yml
+  loki_config:
+    file: ./loki-config.yml
+  promtail_config:
+    file: ./promtail-config.yml
+
 networks:
   app-network:
+    name: bus-booking_app-network
     external: true
   traefik-public:
     external: true
