@@ -46,3 +46,9 @@ gen-proto:
 
 deploy-local:
 	act -W .github/workflows/cd-local.yml -e deployment/local/event.json --secret-file deployment/local/.secret --bind
+
+deploy-local-fast:
+	powershell -ExecutionPolicy Bypass -File scripts/deploy_local.ps1
+
+prune-swarm:
+	ssh -o StrictHostKeyChecking=no -i deployment/local/id_rsa manager@192.168.220.128 "bash -s" < scripts/run_prune.sh
