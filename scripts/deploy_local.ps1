@@ -6,7 +6,19 @@ $Registry = "192.168.220.128:5000"
 $Tag = "v1.1.0"
 $Services = @("api", "booking-service", "bus-service", "payment-service", "notification-service", "user-service", "ws-service")
 
-# 1. Ensure env variables for cross compilation
+# 1. Locate OpenSSH path resolving Windows File System Redirector (Sysnative vs System32)
+$OpenSSHPath = ""
+if (Test-Path "C:\Windows\System32\OpenSSH\scp.exe") {
+    $OpenSSHPath = "C:\Windows\System32\OpenSSH"
+} elseif (Test-Path "C:\Windows\Sysnative\OpenSSH\scp.exe") {
+    $OpenSSHPath = "C:\Windows\Sysnative\OpenSSH"
+}
+
+if ($OpenSSHPath) {
+    $env:Path = "$OpenSSHPath;" + $env:Path
+}
+
+# 2. Ensure env variables for cross compilation
 $env:GOOS = "linux"
 $env:GOARCH = "amd64"
 $env:CGO_ENABLED = "0"

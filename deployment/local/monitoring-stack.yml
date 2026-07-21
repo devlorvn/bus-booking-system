@@ -83,7 +83,7 @@ configs:
 
 networks:
   app-network:
-    name: bus-booking_app-network
+    name: app-network
     external: true
   traefik-public:
     external: true

@@ -7,8 +7,8 @@ Tài liệu này hướng dẫn chi tiết toàn bộ các bước thiết lập
 ## 🏗️ Tổng Quan Kiến Trúc Hạ Tầng (Architecture Overview)
 
 Kiến trúc hạ tầng trên cụm Docker Swarm được thiết lập như sau:
-*   **API Gateway & SSL**: [Traefik](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/traefik-stack.yml) hứng toàn bộ traffic (HTTP/HTTPS), tự động giải quyết chứng chỉ Let's Encrypt SSL và cân bằng tải tới các service phía sau.
-*   **Quản trị cụm**: [Portainer](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/portainer-agent-stack.yml) chạy Agent trên toàn bộ các node, quản trị tập trung qua giao diện Web của Node Manager.
+*   **API Gateway & SSL**: [Traefik](bus-booking-system/deployment/production/traefik-stack.yml) hứng toàn bộ traffic (HTTP/HTTPS), tự động giải quyết chứng chỉ Let's Encrypt SSL và cân bằng tải tới các service phía sau.
+*   **Quản trị cụm**: [Portainer](bus-booking-system/deployment/production/portainer-agent-stack.yml) chạy Agent trên toàn bộ các node, quản trị tập trung qua giao diện Web của Node Manager.
 *   **Hệ thống Monitoring & Logging**:
     *   **Prometheus**: Thu thập metrics (CPU, RAM, HTTP Requests, DB Connection Pool...) từ các microservices qua các cổng metrics riêng biệt (9091-9095).
     *   **Loki**: Cơ sở dữ liệu tập trung lưu trữ logs.
@@ -61,7 +61,7 @@ docker network create --driver overlay --attachable app-network
 ### Bước 2: Triển khai Traefik (API Gateway & SSL Resolver)
 Traefik tự động quét các cấu hình nhãn (labels) trên các container và tự sinh chứng chỉ Let's Encrypt SSL.
 
-1.  Mở file [traefik-stack.yml](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/traefik-stack.yml) và cấu hình lại email quản trị (dòng 21) để Let's Encrypt gửi thông báo khi có sự cố.
+1.  Mở file [traefik-stack.yml](bus-booking-system/deployment/production/traefik-stack.yml) và cấu hình lại email quản trị (dòng 21) để Let's Encrypt gửi thông báo khi có sự cố.
 2.  Deploy Traefik Stack:
     ```bash
     docker stack deploy -c traefik-stack.yml traefik
@@ -94,7 +94,7 @@ Portainer Agent chạy dưới dạng `global` (mỗi node 1 instance) để l�
 1.  Có thể tận dụng registry local chạy trên cổng `5000` của node Manager bằng cách chạy stack registry hoặc dùng dịch vụ Docker Hub / Github Container Registry (GHCR).
 2.  Nếu dùng registry nội bộ của host:
     ```bash
-    docker service create --name registry --publish published=5000,target=5000 --repository registry:2
+    docker service create --name registry --publish published=5000,target=5000 registry:2
     ```
 
 ---
@@ -103,8 +103,8 @@ Portainer Agent chạy dưới dạng `global` (mỗi node 1 instance) để l�
 Đây là hệ thống thu thập metrics và logs tập trung. **Lưu ý**: Do stack này liên kết trực tiếp với các tệp cấu hình trên đĩa thông qua cơ chế mount, bạn bắt buộc phải deploy từ đúng thư mục `deployment/production/`.
 
 1.  Kiểm tra và cấu hình các tệp cấu hình:
-    *   [prometheus.yml](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/prometheus.yml): Cấu hình các target thu thập dữ liệu (cổng 9091 đến 9095 tương ứng với từng service).
-    *   [promtail-config.yml](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/promtail-config.yml): Định nghĩa đường dẫn logs container cần thu thập và đẩy về Loki.
+    *   [prometheus.yml](bus-booking-system/deployment/production/prometheus.yml): Cấu hình các target thu thập dữ liệu (cổng 9091 đến 9095 tương ứng với từng service).
+    *   [promtail-config.yml](bus-booking-system/deployment/production/promtail-config.yml): Định nghĩa đường dẫn logs container cần thu thập và đẩy về Loki.
 2.  Deploy Monitoring Stack:
     ```bash
     docker stack deploy -c monitoring-stack.yml monitoring
@@ -180,7 +180,7 @@ Khi đĩa đầy 100%, bạn không thể chạy các container dọn dẹp thô
 
 Để xử lý, bạn có thể triển khai một script Perl chạy trên container base có sẵn (ví dụ image `postgres:16` đã kéo sẵn trên node) để giao tiếp trực tiếp với cổng socket của Docker thông qua giao thức raw HTTP:
 
-1.  Tạo tệp cấu hình script Perl [prune.pl](file:///c:/Users/luan.nguyen/Documents/devlor/bus-booking-system/deployment/production/prune.pl) trên Manager:
+1.  Tạo tệp cấu hình script Perl [prune.pl](bus-booking-system/deployment/production/prune.pl) trên Manager:
     ```perl
     use IO::Socket::UNIX;
     my $socket = IO::Socket::UNIX->new(Type => SOCK_STREAM, Peer => '/var/run/docker.sock') or die $!;
