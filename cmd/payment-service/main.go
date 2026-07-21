@@ -23,7 +23,11 @@ func main() {
 	config := configs.LoadConfig()
 
 	// Start metrics server
-	metrics.StartMetricsServer(config.MetricsPort)
+	metricsPort := config.MetricsPort
+	if metricsPort == "9090" {
+		metricsPort = "9094"
+	}
+	metrics.StartMetricsServer(metricsPort)
 
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.BookingTopic, 1, 1)
 	kafka.CreateTopicIfNotExist(config.Kafka.Brokers, constants.PaymentTopic, 1, 1)

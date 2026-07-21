@@ -82,7 +82,11 @@ func main() {
 	}()
 
 	// Start metrics server
-	metrics.StartMetricsServer(config.MetricsPort)
+	metricsPort := config.MetricsPort
+	if metricsPort == "9090" {
+		metricsPort = "9091"
+	}
+	metrics.StartMetricsServer(metricsPort)
 
 	// initial grpc server
 	lis, err := net.Listen("tcp", ":50051")

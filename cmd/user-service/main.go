@@ -36,7 +36,11 @@ func main() {
 	userUsecase := usecase.NewUserUsecase(userRepo, txManager)
 
 	// Start metrics server
-	metrics.StartMetricsServer(cfg.MetricsPort)
+	metricsPort := cfg.MetricsPort
+	if metricsPort == "9090" {
+		metricsPort = "9093"
+	}
+	metrics.StartMetricsServer(metricsPort)
 
 	lis, err := net.Listen("tcp", ":50053")
 	if err != nil {

@@ -20,7 +20,11 @@ func main() {
 	cfg := configs.LoadConfig()
 
 	// Start metrics server
-	metrics.StartMetricsServer(cfg.MetricsPort)
+	metricsPort := cfg.MetricsPort
+	if metricsPort == "9090" {
+		metricsPort = "9095"
+	}
+	metrics.StartMetricsServer(metricsPort)
 
 	redisClient := redis.NewClient(&cfg.Redis)
 	defer redisClient.Close()

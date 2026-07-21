@@ -48,8 +48,9 @@ func main() {
 		slog.Error("failed to connect database: ", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-
+	slog.Info("Mode", slog.String("mode", config.Mode))
 	if config.Mode != "production" {
+		slog.Info("Migrating database...")
 		err = postgres.AutoMigrate(db)
 		if err != nil {
 			slog.Error("failed to migrate database: ", slog.String("error", err.Error()))
@@ -224,7 +225,11 @@ func main() {
 	}()
 
 	// Start metrics server
-	metrics.StartMetricsServer(config.MetricsPort)
+	metricsPort := config.MetricsPort
+	if metricsPort == "9090" {
+		metricsPort = "9092"
+	}
+	metrics.StartMetricsServer(metricsPort)
 
 	// Running Booking gRPC server on port 50052
 	lis, err := net.Listen("tcp", ":50052")
