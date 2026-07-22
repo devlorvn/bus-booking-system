@@ -36,6 +36,31 @@ func (u *LockSeatUsecase) Execute(
 		return nil, ErrNoSeatSelected
 	}
 
+	// 1. Lock the seats in Redis FIRST to prevent race conditions during DB validation
+	err := u.seatLockPort.AcquireSeatLocks(
+		ctx,
+		input.BusID,
+		input.SeatCodes,
+		input.TempUserID.String(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clean up lock if any DB validation fails
+	success := false
+	defer func() {
+		if !success {
+			_ = u.seatLockPort.ReleaseSeatLocks(
+				ctx,
+				input.BusID,
+				input.SeatCodes,
+				input.TempUserID.String(),
+			)
+		}
+	}()
+
+	// 2. Validate Bus & Seats in DB
 	bus, err := u.busPort.GetBus(ctx, input.BusID)
 	if err != nil {
 		return nil, err
@@ -63,18 +88,10 @@ func (u *LockSeatUsecase) Execute(
 		}
 	}
 
-	// Lock the seats using the SeatLockPort first
-	err = u.seatLockPort.AcquireSeatLocks(
-		ctx,
-		input.BusID,
-		input.SeatCodes,
-		input.TempUserID.String(),
-	)
-	if err != nil {
-		return nil, err
-	}
+	// Everything validated successfully; keep the lock!
+	success = true
 
-	// Broadcast events only after locks are successfully acquired
+	// 3. Broadcast events only after locks and validations succeed
 	for _, seat := range seats {
 		_ = u.eventPublisher.PublishSeatLocked(
 			input.BusID.String(),
