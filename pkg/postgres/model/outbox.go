@@ -13,5 +13,7 @@ type Outbox struct {
 	EventType     string    `gorm:"type:varchar(255);not null"`
 	Payload       []byte    `gorm:"type:jsonb;not null"`
 	Status        string    `gorm:"type:varchar(50);not null;default:'PENDING';index:idx_outbox_status_created"`
+	RetryCount    int       `gorm:"type:int;not null;default:0"`
+	LastError     string    `gorm:"type:text"`
 	CreatedAt     time.Time `gorm:"autoCreateTime;index:idx_outbox_status_created"`
 }
